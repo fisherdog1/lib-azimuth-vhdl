@@ -27,14 +27,16 @@ endef
 
 build_vdp: ${VDP_DIR}/*.go
 	echo "Building vdp"
-	cd ${VDP_DIR}; go build .
-	cp ${VDP_DIR}/vdp ./util/vdp
+	-mkdir ./util
+	cd ${VDP_DIR}
+	go build .
+	mv vdp ../../util/vdp
 
 rtl_test_dirs :=\
 address_math\
 realtime_math
 
-$(rtl_test_dirs): ./rtl/templates/*.vhd
+$(rtl_test_dirs): ./rtl/templates/*.vhd build_vdp
 	# Change directory to target
 	$(shell pushd .)
 	cd ./rtl/$@

@@ -1,5 +1,7 @@
+#!/bin/bash
 # The year is 2025
 .ONESHELL:
+.SILENT:
 
 # Point to your Go/GHDL executables
 GO := go
@@ -12,20 +14,7 @@ VDP := ${THIS_DIR}/util/vdp
 BUILD_DIR := ${THIS_DIR}/build
 TEMPLATES := ${THIS_DIR}/rtl/templates
 
-# GHDL log checker
-define checklog
-rm -f PASS
-rm -f FAIL
-if cat $(1) | grep -q "!PASS!"; then\
-	echo "$(2) PASSED";\
-	touch PASS;\
-else\
-	echo "$(2) FAILED";\
-	touch FAIL;\
-fi
-endef
-
-build_vdp: ${VDP_DIR}/*.go
+./util/vdp: ${VDP_DIR}/*.go
 	echo "Building vdp"
 	-mkdir ./util
 	cd ${VDP_DIR}
@@ -36,9 +25,8 @@ rtl_test_dirs :=\
 address_math\
 realtime_math
 
-$(rtl_test_dirs): ./rtl/templates/*.vhd build_vdp
+$(rtl_test_dirs): ./rtl/templates/*.vhd ./util/vdp
 	# Change directory to target
-	$(shell pushd .)
 	cd ./rtl/$@
 
 	# Remove previous run
@@ -52,9 +40,19 @@ $(rtl_test_dirs): ./rtl/templates/*.vhd build_vdp
 	-${GHDL} compile --std=08 *.vhd -r unit_tests > $@.log
 
 	# Check for !PASS!
-	$(call checklog,$@.log,$@)
+	rm -f PASS
+	rm -f FAIL
+	if cat $@.log | grep -q "!PASS!"; then\
+		echo "=================== Unit Tests for $@ PASSED ===================";\
+	touch PASS;\
+	else\
+		echo "=================== Unit Tests for $@ FAILED ===================";\
+		if [ -s $@.log ]; then
+			echo "GHDL Log ($@.log):"
+			cat $@.log
+			echo ""
+		fi
+	touch FAIL;\
+	fi
 
-	# Leave directory
-	$(shell popd .)
-
-all_lib_tests: $(rtl_test_dirs)
+all_unit_tests: $(rtl_test_dirs)

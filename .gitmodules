@@ -1,0 +1,3 @@
+[submodule "vhdl-dumb-preprocessor"]
+	path = vhdl-dumb-preprocessor
+	url = git@github.com:fisherdog1/vhdl-dumb-preprocessor.git

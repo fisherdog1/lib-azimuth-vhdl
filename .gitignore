@@ -2,3 +2,4 @@
 *.log
 /util/
 /lib/
+!/lib/Libraries.mk

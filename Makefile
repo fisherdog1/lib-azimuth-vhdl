@@ -3,7 +3,7 @@
 
 vdp = ../../util/vdp
 
-directories:=\
+export directories:=\
 address_math\
 realtime_math
 

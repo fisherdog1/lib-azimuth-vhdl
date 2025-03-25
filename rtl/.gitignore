@@ -1,4 +1,4 @@
-*.gen.vhd
+*.gen_vhd
 *.log
 PASS
 FAIL

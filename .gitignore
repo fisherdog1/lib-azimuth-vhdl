@@ -1,5 +1,5 @@
 *.o
 *.log
 /util/
-/lib/
+/lib/*
 !/lib/Libraries.mk

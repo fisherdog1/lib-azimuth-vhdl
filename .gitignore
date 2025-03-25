@@ -3,3 +3,7 @@
 /util/
 /lib/*
 !/lib/Libraries.mk
+**/*.gen_vhd
+*.log
+PASS
+FAIL

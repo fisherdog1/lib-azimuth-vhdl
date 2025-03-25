@@ -2,10 +2,8 @@ library ieee;
 	use ieee.std_logic_1164.all;
 	use ieee.numeric_std.all;
 
-library lib_realtime_math;
-	use lib_realtime_math.realtime_math.all;
-
-library lib_clocking;
+library lib_azimuth;
+	use lib_azimuth.realtime_math.all;
 
 entity uart_tx is
 	port (
@@ -84,7 +82,7 @@ begin
 	tx_accept <= (tx_data_valid and tx_data_ready) = '1';
 	tx <= shiftreg(0);
 
-	baud_divider: entity lib_clocking.clock_enable_divider
+	baud_divider: entity lib_azimuth.clock_enable_divider
 	generic map (
 		FIRST_CYCLE => true,
 		CHANGE_DIVIDER_IMMEDIATELY => true)

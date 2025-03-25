@@ -5,7 +5,9 @@ vdp = ../../util/vdp
 
 export directories:=\
 address_math\
-realtime_math
+realtime_math\
+clocking\
+comms
 
 build_vdp:
 	cd ./vhdl-dumb-preprocessor/vdp

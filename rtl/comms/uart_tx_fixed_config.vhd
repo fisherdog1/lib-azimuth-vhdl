@@ -3,8 +3,8 @@ library ieee;
 	use ieee.numeric_std.all;
 	use ieee.math_real.all;
 
-library lib_realtime_math;
-	use lib_realtime_math.realtime_math.all;
+library lib_azimuth;
+	use lib_azimuth.realtime_math.all;
 
 --Uart TX with fixed configuration
 entity uart_tx_fixed_config is
@@ -39,7 +39,7 @@ begin
 	assert get_clock_divider_error(CLK_HZ, TX_HZ) < 0.03 
 		report "Implausible to produce desired baud rate from provided clock!" severity error;
 
-	device: entity work.uart_tx
+	device: entity lib_azimuth.uart_tx
 	port map (
 		clk => clk,
 		rst => rst,

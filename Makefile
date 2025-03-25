@@ -7,6 +7,13 @@ export directories:=\
 address_math\
 realtime_math
 
+build_vdp:
+	cd ./vhdl-dumb-preprocessor/vdp
+	go build .
+	cd ../..
+	mkdir util
+	mv ./vhdl-dumb-preprocessor/vdp/vdp ./util/vdp
+
 unit_test:
 	$(vdp) -d package $(shell basename `pwd`) -f tests.vdp -f ../templates/unit_tests_template.vhd -o > $(shell basename `pwd`).gen_vhd
 	ghdl compile --std=08 *.gen_vhd *.vhd -r unit_tests > $(shell basename `pwd`)_08.log

@@ -1,6 +1,8 @@
 library ieee;
 	use ieee.math_real.all;
 
+library lib_azimuth;
+
 package realtime_math is
 	subtype clock_t is natural;
 

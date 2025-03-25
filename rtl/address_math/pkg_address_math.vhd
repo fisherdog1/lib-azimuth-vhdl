@@ -1,6 +1,8 @@
 library ieee;
 	use ieee.math_real.all;
 
+library lib_azimuth;
+
 package address_math is
 	function bits_required(unsigned_max : natural) return natural;
 end package;

@@ -5,6 +5,7 @@ library ieee;
 
 library lib_azimuth;
 	use lib_azimuth.realtime_math.all;
+	use lib_azimuth.address_math.bits_required;
 
 --Uart TX with fixed configuration
 entity uart_tx_fixed_config is
@@ -32,7 +33,7 @@ end entity;
 
 architecture rtl of uart_tx_fixed_config is
 	constant fixed_divider : natural := get_clock_divider_int(CLK_HZ, TX_HZ);
-	constant bits_required : natural := integer(floor(log2(real(fixed_divider)))) + 1;
+	constant bits_required : natural := lib_azimuth.address_math.bits_required(fixed_divider);
 
 	constant divider : unsigned(bits_required - 1 downto 0) := to_unsigned(fixed_divider, bits_required);
 begin

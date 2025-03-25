@@ -1,0 +1,20 @@
+library work;
+	use work.realtime_math.all;
+
+entity unit_tests is
+end entity;
+
+
+architecture sim of unit_tests is
+begin
+	process
+	begin
+		loop
+
+
+			assert false report "Tests !PASS!" severity failure;
+		end loop;
+
+		assert false report "Tests !FAIL!" severity failure;
+	end process;
+end architecture sim;

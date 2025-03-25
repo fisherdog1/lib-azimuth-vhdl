@@ -1,58 +1,22 @@
-#!/bin/bash
-# The year is 2025
 .ONESHELL:
 .SILENT:
 
-# Point to your Go/GHDL executables
-GO := go
-GHDL := ghdl
+vdp = ../../util/vdp
 
-MAKE := make
-THIS_DIR := $(shell pwd)
-VDP_DIR := ${THIS_DIR}/vhdl-dumb-preprocessor/vdp
-VDP := ${THIS_DIR}/util/vdp
-BUILD_DIR := ${THIS_DIR}/build
-TEMPLATES := ${THIS_DIR}/rtl/templates
-
-./util/vdp: ${VDP_DIR}/*.go
-	echo "Building vdp"
-	-mkdir ./util
-	cd ${VDP_DIR}
-	go build .
-	mv vdp ../../util/vdp
-
-rtl_test_dirs :=\
+directories:=\
 address_math\
 realtime_math
 
-$(rtl_test_dirs): ./rtl/templates/*.vhd ./util/vdp
-	# Change directory to target
-	cd ./rtl/$@
+unit_test:
+	$(vdp) -d package $(shell basename `pwd`) -f tests.vdp -f ../templates/unit_tests_template.vhd -o > $(shell basename `pwd`).gen_vhd
+	ghdl compile --std=08 *.gen_vhd *.vhd -r unit_tests > $(shell basename `pwd`)_08.log
+	ghdl compile --std=93 *.gen_vhd *.vhd -r unit_tests > $(shell basename `pwd`)_93.log
 
-	# Remove previous run
-	rm -f *.gen.vhd
-	rm -f *.log
+	cat $(shell basename `pwd`)_08.log | egrep '!PASS!|!FAIL!'
+	cat $(shell basename `pwd`)_93.log | egrep '!PASS!|!FAIL!'
+	
+all_unit_tests:
+	$(foreach dir,$(directories),$(MAKE) -C ./rtl/$(dir) -f ../../Makefile unit_test;)
 
-	# Generate unit tests from list of expressions and template
-	${VDP} -d package $@ -f tests.vdp -f ${TEMPLATES}/unit_tests_template.vhd -o > $@.gen.vhd
-
-	# Compile and execute unit tests
-	-${GHDL} compile --std=08 *.vhd -r unit_tests > $@.log
-
-	# Check for !PASS!
-	rm -f PASS
-	rm -f FAIL
-	if cat $@.log | grep -q "!PASS!"; then\
-		echo "=================== Unit Tests for $@ PASSED ===================";\
-	touch PASS;\
-	else\
-		echo "=================== Unit Tests for $@ FAILED ===================";\
-		if [ -s $@.log ]; then
-			echo "GHDL Log ($@.log):"
-			cat $@.log
-			echo ""
-		fi
-	touch FAIL;\
-	fi
-
-all_unit_tests: $(rtl_test_dirs)
+all_libs:
+	$(MAKE) -C ./lib -f Libraries.mk

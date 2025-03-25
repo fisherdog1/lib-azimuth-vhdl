@@ -1,0 +1,39 @@
+library work;
+	use work.address_math.all;
+
+entity unit_tests is
+end entity;
+
+
+architecture sim of unit_tests is
+begin
+	process
+	begin
+		loop
+			report "bits_required(0) = 0" severity note;
+			if not (bits_required(0) = 0) then 
+				report "FAIL" severity error;
+				exit; 
+			end if;
+			report "bits_required(1) = 1" severity note;
+			if not (bits_required(1) = 1) then 
+				report "FAIL" severity error;
+				exit; 
+			end if;
+			report "bits_required(255) = 8" severity note;
+			if not (bits_required(255) = 8) then 
+				report "FAIL" severity error;
+				exit; 
+			end if;
+			report "bits_required(256) = 9" severity note;
+			if not (bits_required(256) = 9) then 
+				report "FAIL" severity error;
+				exit; 
+			end if;
+
+			assert false report "Tests !PASS!" severity failure;
+		end loop;
+
+		assert false report "Tests !FAIL!" severity failure;
+	end process;
+end architecture sim;

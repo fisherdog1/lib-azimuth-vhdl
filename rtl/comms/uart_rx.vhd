@@ -20,7 +20,7 @@ entity uart_rx is
 		even_parity : boolean := true;
 
 		--Data
-		rx_data : out std_ulogic_vector(9 downto 0);
+		rx_data : buffer std_ulogic_vector(9 downto 0);
 		rx_data_valid : out std_ulogic;
 		rx_data_ready : std_ulogic;
 
@@ -29,8 +29,8 @@ entity uart_rx is
 end entity;
 
 architecture rtl of uart_rx is
-	--Received data shift register
-	subtype shiftreg_t is std_ulogic_vector(7 downto 0);
+	--Received data shift register (note extra space)
+	subtype shiftreg_t is std_ulogic_vector(14 downto 0);
 	signal shiftreg : shiftreg_t := (others => '1');
 
 	--Current divider count
@@ -58,19 +58,16 @@ architecture rtl of uart_rx is
 	--Enable sampling on data or parity bits
 	signal sample_en : boolean;
 
-	impure function total_bits return positive is
-		variable parity_bit : natural;
-	begin
-		if use_parity then
-			parity_bit := 1;
-		else
-			parity_bit := 0;
-		end if;
+	--Simple conversion
+	signal parity_bit : natural;
 
+	impure function total_bits return positive is
+	begin
 		return start_bits + data_bits + parity_bit + stop_bits;
 	end function;
 begin
-	sample_en <= counter > stop_bits and counter <= stop_bits + data_bits;
+	parity_bit <= 1 when use_parity else 0;
+	sample_en <= counter <= stop_bits + data_bits + parity_bit and counter > stop_bits;
 
 	rx_falling <= rx = '0' and rx_buf = '1';
 	rx_start_ready <= counter = 0;
@@ -91,6 +88,16 @@ begin
 		divider => divider,
 		clkdiv_en => rx_clken,
 		count => divider_count);
+
+	process (shiftreg, data_bits, start_bits, parity_bit)
+	begin
+		--Select data from shift register based on word size
+		rx_data(data_bits - 1 downto 0) <= 
+			shiftreg(shiftreg_t'left - parity_bit downto shiftreg_t'left - data_bits - parity_bit + 1);
+
+		--Zero-extend
+		rx_data(rx_data'left downto data_bits) <= (others => '0');
+	end process;
 
 	process (clk)
 	begin
@@ -115,8 +122,6 @@ begin
 					if sample_en then
 						shiftreg <= rx_buf & shiftreg(shiftreg'left downto 1);
 					end if;
-				else
-
 				end if;
 			end if;
 		end if;

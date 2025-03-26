@@ -16,12 +16,12 @@ entity uart_rx is
 		start_bits : positive range 1 to 2;
 		data_bits : positive range 5 to 10;
 		stop_bits : positive range 1 to 2;
-		use_parity : boolean := false;
-		even_parity : boolean := true;
+		use_parity : boolean := true;
+		even_parity : boolean := false;
 
 		--Data
-		rx_data : buffer std_ulogic_vector(9 downto 0);
-		rx_data_valid : out std_ulogic;
+		rx_data : out std_ulogic_vector(9 downto 0);
+		rx_data_valid : buffer std_ulogic;
 		rx_data_ready : std_ulogic;
 
 		--Phy
@@ -32,6 +32,9 @@ architecture rtl of uart_rx is
 	--Received data shift register (note extra space)
 	subtype shiftreg_t is std_ulogic_vector(14 downto 0);
 	signal shiftreg : shiftreg_t := (others => '1');
+
+	--Internal received data word before parity check
+	signal data_temp : std_ulogic_vector(9 downto 0);
 
 	--Current divider count
 	signal divider_count : natural;
@@ -65,6 +68,24 @@ architecture rtl of uart_rx is
 	begin
 		return start_bits + data_bits + parity_bit + stop_bits;
 	end function;
+
+	impure function parity_ok(next_shiftreg : shiftreg_t) return boolean is
+		variable even : std_ulogic;
+		variable temp : shiftreg_t;
+	begin
+		even := '0';
+
+		for i in shiftreg_t'left downto shiftreg_t'right loop
+			even := even xor next_shiftreg(i);
+			temp(i) := even;
+		end loop;
+
+		if not use_parity then
+			return true;
+		end if;
+
+		return (temp(shiftreg_t'left - data_bits - parity_bit + 1) = '0') xor even_parity;
+	end function;
 begin
 	parity_bit <= 1 when use_parity else 0;
 	sample_en <= counter <= stop_bits + data_bits + parity_bit and counter > stop_bits;
@@ -89,29 +110,36 @@ begin
 		clkdiv_en => rx_clken,
 		count => divider_count);
 
-	process (shiftreg, data_bits, start_bits, parity_bit)
+	process (shiftreg, data_bits, parity_bit)
 	begin
 		--Select data from shift register based on word size
-		rx_data(data_bits - 1 downto 0) <= 
+		data_temp(data_bits - 1 downto 0) <= 
 			shiftreg(shiftreg_t'left - parity_bit downto shiftreg_t'left - data_bits - parity_bit + 1);
 
 		--Zero-extend
-		rx_data(rx_data'left downto data_bits) <= (others => '0');
+		data_temp(data_temp'left downto data_bits) <= (others => '0');
 	end process;
 
 	process (clk)
+		variable next_shiftreg : shiftreg_t;
 	begin
 		if rising_edge(clk) then
 			if rst = '1' then
 				rx_buf <= '1';
+				rx_data_valid <= '0';
 				counter <= (others => '0');
 				shiftreg <= (others => '1');
 			else
 				rx_buf <= rx;
 
 				--Start on falling edge
-				if rx_start_ready and rx_falling then
+				if started = '0' and rx_falling then
 					counter <= to_unsigned(total_bits, counter'length);
+				end if;
+
+				--Acknowledge received data
+				if (rx_data_valid and rx_data_ready) = '1' then
+					rx_data_valid <= '0';
 				end if;
 
 				--First count down is half duration, sample on center of bit
@@ -119,8 +147,15 @@ begin
 					--Count down and shift in data
 					counter <= counter - 1;
 
-					if sample_en then
-						shiftreg <= rx_buf & shiftreg(shiftreg'left downto 1);
+					next_shiftreg := rx & shiftreg(shiftreg'left downto 1);
+
+					if sample_en then	
+						shiftreg <= next_shiftreg;
+					end if;
+
+					if counter = 1 and parity_ok(shiftreg) then
+						rx_data <= data_temp;
+						rx_data_valid <= '1';
 					end if;
 				end if;
 			end if;

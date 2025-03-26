@@ -47,9 +47,9 @@ architecture rtl of uart_tx is
 		parity_sel: temp := taps(data_bits - 1);
 
 		parity_polarity_sel: if even_parity then
-			return temp;
-		else
 			return not temp;
+		else
+			return temp;
 		end if;
 	end function;
 

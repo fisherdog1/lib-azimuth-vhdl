@@ -13,9 +13,9 @@ entity uart_tx_fixed_config is
 		CLK_HZ : natural := 100e6;
 		TX_HZ : natural := 115200;
 		START_BITS : positive := 1;
-		DATA_BITS : positive := 7;
+		DATA_BITS : positive := 8;
 		STOP_BITS : positive := 1;
-		USE_PARITY : boolean := true;
+		USE_PARITY : boolean := false;
 		EVEN_PARITY : boolean := false);
 	port (
 		--System

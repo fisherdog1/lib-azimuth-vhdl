@@ -12,10 +12,11 @@ entity clock_enable_divider is
 		--Otherwise, waits for the current cycle to end
 		CHANGE_DIVIDER_IMMEDIATELY : boolean := true);
 	port (
-		clk, rst : in std_ulogic;
+		clk, rst : std_ulogic;
 		clkdiv_en : out std_ulogic;
 
-		divider : in unsigned);
+		divider : unsigned;
+		count : out natural);
 end entity;
 
 architecture rtl of clock_enable_divider is
@@ -33,6 +34,8 @@ begin
 	disable_first_cycle: if not FIRST_CYCLE generate
 		load_value <= to_unsigned(1, divider_t'length);
 	end generate;
+
+	count <= to_integer(counter);
 
 	process (clk, divider)
 	begin

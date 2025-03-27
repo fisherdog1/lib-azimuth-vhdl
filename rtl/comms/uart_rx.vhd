@@ -97,7 +97,7 @@ begin
 	not_started <= not started;
 
 	first_count <= counter = to_unsigned(total_bits, counter'length);
-	half_count <= to_unsigned(divider_count, divider'length - 1) = divider(divider'left downto 1);
+	half_count <= to_unsigned(divider_count, divider'length - 1) = divider(divider'left downto 1) - 1;
 
 	baud_divider: entity lib_azimuth.clock_enable_divider
 	generic map (

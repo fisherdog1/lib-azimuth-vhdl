@@ -29,9 +29,3 @@ all_unit_tests:
 
 all_libs:
 	$(MAKE) -C ./lib -f Libraries.mk
-
-lib_2008:
-	$(MAKE) -C ./lib -f Libraries.mk lib_azimuth-obj08.cf
-
-lib_1993:
-	$(MAKE) -C ./lib -f Libraries.mk lib_azimuth-obj93.cf

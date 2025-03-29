@@ -42,35 +42,33 @@ entity uart_baud_detect is
 		--Data of first word, when RECOVER feature enabled
 		data_first : out std_ulogic_vector(MAX_BITS_PER_WORD - 1 downto 0);
 		data_first_valid : out std_ulogic);
+end entity;
 
+architecture rtl of uart_baud_detect is
 	--Calculate needed counter sizes and max values
 	constant width_counter_sat_level : natural := get_clock_divider_int(MAX_CLK_HZ, MIN_DETECT_HZ);
 	constant total_counter_sat_level : natural := width_counter_sat_level * MAX_BITS_PER_WORD;
 
-	package pkg_width_counter is new lib_azimuth.counters 
-	generic map (
-		MAX_COUNT => width_counter_sat_level);
+	subtype width_counter_t is unsigned(bits_required(width_counter_sat_level) - 1 downto 0);
+	subtype total_counter_t is unsigned(bits_required(total_counter_sat_level) - 1 downto 0);
 
-	package pkg_total_counter is new lib_azimuth.counters 
-	generic map (
-		MAX_COUNT => total_counter_sat_level);
-
-
-end entity;
-
-architecture rtl of uart_baud_detect is
-	signal width_counter : pkg_width_counter.counter_t := pkg_width_counter.max;
-	signal width_counter_prev : pkg_width_counter.counter_t := pkg_width_counter.max;
-	signal total_counter : pkg_total_counter.counter_t := pkg_total_counter.max;
+	constant width_counter_sat : width_counter_t := to_unsigned(width_counter_sat_level, width_counter_t'length);
+	constant total_counter_sat : total_counter_t := to_unsigned(total_counter_sat_level, total_counter_t'length);
 
 	--Edge detector signals
 	signal rx_buf : std_ulogic := '1';
 	signal edge : boolean;
 
+	--Total width observed since starting
+	signal total_width : total_counter_t := total_counter_sat;
+
 	--Estimated word width based on smallest observed pulse
-	signal estimated_word_width_sat : pkg_width_counter.counter_t;
+	signal estimated_word_width_sat : width_counter_t;
 	signal estimated_word_width :
-		unsigned(bits_per_word'length + pkg_width_counter.counter_t'length - 1 downto 0);
+		unsigned(bits_per_word'length + width_counter_t'length - 1 downto 0);
+
+	signal width_counter : width_counter_t := width_counter_sat;
+	signal width_counter_prev : width_counter_t := width_counter_sat;
 
 	signal width_saturated : boolean;
 	signal total_saturated : boolean;
@@ -78,7 +76,8 @@ architecture rtl of uart_baud_detect is
 	--When recording previous pulses, only enough resolution is required
 	--to disambiguate in the worst case of bad estimation, i.e. ..10000000101..
 	--The estimate in this case is 7 times what it should be
-	type prev_pulse_array_t is array (0 to MAX_BITS_PER_WORD - 1) of pkg_width_counter.counter_t;
+	subtype prev_pulse_t is unsigned(width_counter_t'length - 1 downto 0); --Temp, can be much less
+	type prev_pulse_array_t is array (0 to MAX_BITS_PER_WORD - 1) of prev_pulse_t;
 	subtype prev_pulse_ptr_t is natural range 0 to MAX_BITS_PER_WORD;
 	signal prev_pulses : prev_pulse_array_t := (others => (others => '0'));
 	signal prev_pulse_ptr : prev_pulse_ptr_t := 0;
@@ -97,21 +96,21 @@ architecture rtl of uart_baud_detect is
 		signal polarity : inout std_ulogic_vector;
 		signal done : out std_ulogic) 
 	is
-		variable current_pulse_width : pkg_width_counter.counter_t;
-		variable three_quarter : pkg_width_counter.counter_t;
+		variable current_pulse_width : prev_pulse_t;
+		variable three_quarter : width_counter_t;
 		variable new_ptr : prev_pulse_ptr_t;
 	begin
 		current_pulse_width := pulses(ptr);
 		new_ptr := ptr;
 		three_quarter := resize(
-			width_counter_prev(pkg_width_counter.counter_t'left downto 1) +
-			width_counter_prev(pkg_width_counter.counter_t'left downto 2), three_quarter'length);
+			width_counter_prev(width_counter_t'left downto 1) +
+			width_counter_prev(width_counter_t'left downto 2), three_quarter'length);
 
 		if current_pulse_width > three_quarter then
 			current_pulse_width := current_pulse_width - width_counter_prev;
 			shiftreg <= polarity & shiftreg(shiftreg_t'left downto 1);
 		else
-			current_pulse_width := to_unsigned(0, pkg_width_counter.counter_t'length);
+			current_pulse_width := to_unsigned(0, prev_pulse_t'length);
 			polarity <= not polarity;
 			new_ptr := prev_pulse_ptr + 1;
 		end if;
@@ -129,25 +128,25 @@ begin
 	--Edge detector
 	edge <= (rx xor rx_buf) = '1';
 	width_saturated <= width_counter = width_counter_sat_level;
-	total_saturated <= total_counter = total_counter_sat_level;
+	total_saturated <= total_width = total_counter_sat_level;
 
 	--Estimate when the end of the word will be
 	estimated_word_width <= 
 		bits_per_word * width_counter_prev
-		+ width_counter_prev(pkg_width_counter.counter_t'length - 1 downto 1);
+		+ width_counter_prev(width_counter_t'length - 1 downto 1);
 
 	estimated_word_width_sat <= 
 		(others => '1') when estimated_word_width >= width_counter_sat_level 
-		else estimated_word_width(pkg_width_counter.counter_t'left downto 0);
+		else estimated_word_width(width_counter_t'left downto 0);
 
 	process (clk)
 	begin
 		if rising_edge(clk) then
 			if rst = '1' then
 				rx_buf <= '1';
-				total_counter <= pkg_total_counter.max;
-				width_counter <= pkg_width_counter.max;
-				width_counter_prev <= pkg_width_counter.max;
+				total_width <= total_counter_sat;
+				width_counter <= width_counter_sat;
+				width_counter_prev <= width_counter_sat;
 				divider_valid <= '0';
 
 				enable_pulse_gobbler <= '0';
@@ -156,11 +155,16 @@ begin
 				rx_buf <= rx;
 
 				--Saturating counter measuring pulse width
-				pkg_width_counter.sat_count(width_counter);
-				pkg_total_counter.sat_count(total_counter);
+				if width_counter < width_counter_sat then
+					width_counter <= width_counter + 1;
+				end if;
+
+				if total_width < total_counter_sat then
+					total_width <= total_width + 1;
+				end if;
 
 				--TODO: accept after 6 nearly identical pulse widths, too
-				if total_counter >= estimated_word_width then
+				if total_width >= estimated_word_width then
 					--It's likely no more pulses are coming
 					--output divider value
 					divider <= width_counter_prev;
@@ -168,7 +172,7 @@ begin
 
 				if edge then
 					--If width too high, ignore this edge
-					if total_counter < estimated_word_width then
+					if total_width < estimated_word_width then
 						--Measure this pulse,
 						--If lower than previous count, replace previous count
 						if width_counter < width_counter_prev then
@@ -182,7 +186,7 @@ begin
 						end if;
 					else
 						--Rearm detection
-						total_counter <= (others => '0');
+						total_width <= (others => '0');
 						prev_pulse_ptr <= 0;
 
 						if not total_saturated then
@@ -203,7 +207,7 @@ begin
 					data_first <= "00" & data_first_shiftreg(9 downto 2);
 					enable_pulse_gobbler <= '0';
 					pulse_gobbler_done <= '0';
-					width_counter_prev <= pkg_width_counter.max;
+					width_counter_prev <= width_counter_sat;
 					divider_valid <= '1';
 				elsif enable_pulse_gobbler = '1' then
 					gobble_pulses(prev_pulses, prev_pulse_ptr, data_first_shiftreg, gobbler_polarity, pulse_gobbler_done);

@@ -76,11 +76,16 @@ architecture rtl of uart_baud_detect is
 	--When recording previous pulses, only enough resolution is required
 	--to disambiguate in the worst case of bad estimation, i.e. ..10000000101..
 	--The estimate in this case is 7 times what it should be
-	subtype prev_pulse_t is unsigned(width_counter_t'length - 1 downto 0); --Temp, can be much less
+	--Truncate the first estimate to 4 bits, which should be more than enough
+	subtype prev_pulse_t is unsigned(3 downto 0);
 	type prev_pulse_array_t is array (0 to MAX_BITS_PER_WORD - 1) of prev_pulse_t;
 	subtype prev_pulse_ptr_t is natural range 0 to MAX_BITS_PER_WORD;
 	signal prev_pulses : prev_pulse_array_t := (others => (others => '0'));
 	signal prev_pulse_ptr : prev_pulse_ptr_t := 0;
+
+	subtype width_index_t is natural range 3 to width_counter_t'left;
+	signal width_index : width_index_t := width_counter_t'left;
+	signal width_counter_prev_msb : prev_pulse_t;
 
 	--Gobbler turns pulse widths into data bits
 	subtype shiftreg_t is std_ulogic_vector(MAX_BITS_PER_WORD - 1 downto 0);
@@ -97,17 +102,22 @@ architecture rtl of uart_baud_detect is
 		signal done : out std_ulogic) 
 	is
 		variable current_pulse_width : prev_pulse_t;
-		variable three_quarter : width_counter_t;
+		variable three_quarter : prev_pulse_t;
 		variable new_ptr : prev_pulse_ptr_t;
 	begin
 		current_pulse_width := pulses(ptr);
 		new_ptr := ptr;
 		three_quarter := resize(
-			width_counter_prev(width_counter_t'left downto 1) +
-			width_counter_prev(width_counter_t'left downto 2), three_quarter'length);
+			width_counter_prev_msb(prev_pulse_t'left downto 1) +
+			width_counter_prev_msb(prev_pulse_t'left downto 2), three_quarter'length);
 
 		if current_pulse_width > three_quarter then
-			current_pulse_width := current_pulse_width - width_counter_prev;
+			if width_counter_prev_msb <= current_pulse_width then
+				current_pulse_width := current_pulse_width - width_counter_prev_msb;
+			else
+				current_pulse_width := to_unsigned(0, current_pulse_width'length);
+			end if;
+
 			shiftreg <= polarity & shiftreg(shiftreg_t'left downto 1);
 		else
 			current_pulse_width := to_unsigned(0, prev_pulse_t'length);
@@ -124,6 +134,31 @@ architecture rtl of uart_baud_detect is
 
 			pulses(ptr) <= current_pulse_width;
 	end procedure;
+
+	--Extract four most significant bits from unsigned
+	procedure extract_4_msb(
+		variable extracted : out prev_pulse_t;
+		signal new_index : out width_index_t; 
+		signal v : width_counter_t) 
+	is
+		variable msb : natural;
+	begin
+		--Has width range not been estimated yet?
+		if width_index = width_counter_t'left then
+			for I in v'left downto 3 loop
+				msb := I;
+
+				if v(I) = '1' then
+					new_index <= I;
+					exit;	
+				end if;
+			end loop;
+		else
+			msb := width_index;
+		end if;
+
+		extracted := v(msb downto msb - 3);
+	end procedure;
 begin
 	--Edge detector
 	edge <= (rx xor rx_buf) = '1';
@@ -139,7 +174,10 @@ begin
 		(others => '1') when estimated_word_width >= width_counter_sat_level 
 		else estimated_word_width(width_counter_t'left downto 0);
 
+	width_counter_prev_msb <= width_counter_prev(width_index downto width_index - 3);
+
 	process (clk)
+		variable prev : prev_pulse_t;
 	begin
 		if rising_edge(clk) then
 			if rst = '1' then
@@ -151,6 +189,7 @@ begin
 
 				enable_pulse_gobbler <= '0';
 				pulse_gobbler_done <= '0';
+				width_index <= width_counter_t'left;
 			else
 				rx_buf <= rx;
 
@@ -181,7 +220,8 @@ begin
 
 						--Record pulse width
 						if not total_saturated then
-							prev_pulses(prev_pulse_ptr) <= width_counter;
+							extract_4_msb(prev, width_index, width_counter);
+							prev_pulses(prev_pulse_ptr) <= prev;
 							prev_pulse_ptr <= prev_pulse_ptr + 1;
 						end if;
 					else
@@ -208,6 +248,7 @@ begin
 					enable_pulse_gobbler <= '0';
 					pulse_gobbler_done <= '0';
 					width_counter_prev <= width_counter_sat;
+					width_index <= width_counter'left;
 					divider_valid <= '1';
 				elsif enable_pulse_gobbler = '1' then
 					gobble_pulses(prev_pulses, prev_pulse_ptr, data_first_shiftreg, gobbler_polarity, pulse_gobbler_done);

@@ -46,14 +46,18 @@ end entity;
 
 architecture rtl of uart_baud_detect is
 	--Calculate needed counter sizes and max values
-	constant width_counter_sat_level : natural := get_clock_divider_int(MAX_CLK_HZ, MIN_DETECT_HZ);
-	constant total_counter_sat_level : natural := width_counter_sat_level * MAX_BITS_PER_WORD;
+	constant width_counter_sat_level : natural := 
+		get_clock_divider_int(MAX_CLK_HZ, MIN_DETECT_HZ);
+	constant total_counter_sat_level : natural := 
+		width_counter_sat_level * MAX_BITS_PER_WORD;
 
 	subtype width_counter_t is unsigned(bits_required(width_counter_sat_level) - 1 downto 0);
 	subtype total_counter_t is unsigned(bits_required(total_counter_sat_level) - 1 downto 0);
 
-	constant width_counter_sat : width_counter_t := to_unsigned(width_counter_sat_level, width_counter_t'length);
-	constant total_counter_sat : total_counter_t := to_unsigned(total_counter_sat_level, total_counter_t'length);
+	constant width_counter_sat : width_counter_t := 
+		to_unsigned(width_counter_sat_level, width_counter_t'length);
+	constant total_counter_sat : total_counter_t := 
+		to_unsigned(total_counter_sat_level, total_counter_t'length);
 
 	--Edge detector signals
 	signal rx_buf : std_ulogic := '1';
@@ -241,17 +245,27 @@ begin
 					width_counter <= (others => '0');
 				end if;
 
+				data_first_valid <= '0';
+
 				if pulse_gobbler_done = '1' then
 					--Reset regs used by gobbler
 					prev_pulse_ptr <= 0;
+
 					data_first <= "00" & data_first_shiftreg(9 downto 2);
+					data_first_valid <= '1';
+
 					enable_pulse_gobbler <= '0';
 					pulse_gobbler_done <= '0';
 					width_counter_prev <= width_counter_sat;
 					width_index <= width_counter'left;
 					divider_valid <= '1';
 				elsif enable_pulse_gobbler = '1' then
-					gobble_pulses(prev_pulses, prev_pulse_ptr, data_first_shiftreg, gobbler_polarity, pulse_gobbler_done);
+					gobble_pulses(
+						prev_pulses, 
+						prev_pulse_ptr, 
+						data_first_shiftreg, 
+						gobbler_polarity, 
+						pulse_gobbler_done);
 				end if;
 			end if;
 		end if;

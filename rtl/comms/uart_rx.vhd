@@ -16,7 +16,7 @@ entity uart_rx is
 		start_bits : positive range 1 to 2;
 		data_bits : positive range 5 to 10;
 		stop_bits : positive range 1 to 2;
-		use_parity : boolean := true;
+		use_parity : boolean := false;
 		even_parity : boolean := false;
 
 		--Data

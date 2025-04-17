@@ -1,2 +1,7 @@
 --snippets tests
+realtime_math.get_cycles_counter_width(1e6, 0.0) = 0
+realtime_math.get_cycles_counter_width(1e6, 1.0) = 20
+realtime_math.get_cycles_counter_width(1e6, 1.0e-6) = 1
+realtime_math.get_cycles_counter_width(1e6, 14.9e-6) = 4
+realtime_math.get_cycles_counter_width(1e6, 15.0e-6) = 5
 --endsnippets

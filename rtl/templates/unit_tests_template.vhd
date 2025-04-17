@@ -1,7 +1,5 @@
-library work;
-	use work.
---pasteme package+\
-.all;
+library lib_azimuth;
+	use lib_azimuth.all;
 
 entity unit_tests is
 end entity;

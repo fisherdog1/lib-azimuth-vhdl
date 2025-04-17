@@ -1,6 +1,6 @@
 --snippets tests
-bits_required(0) = 0
-bits_required(1) = 1
-bits_required(255) = 8
-bits_required(256) = 9
+address_math.bits_required(0) = 0
+address_math.bits_required(1) = 1
+address_math.bits_required(255) = 8
+address_math.bits_required(256) = 9
 --endsnippets

@@ -36,7 +36,7 @@ entity uart_baud_detect is
 
 		--Number of clock cycles per bit at detected baud rate
 		divider : out unsigned(
-			bits_required(get_clock_divider_int(MAX_CLK_HZ, MIN_DETECT_HZ)) - 1 downto 0);
+			bits_required(clock_divider_int(MAX_CLK_HZ, MIN_DETECT_HZ)) - 1 downto 0);
 		divider_valid : out std_ulogic;
 
 		--Data of first word, when RECOVER feature enabled
@@ -47,7 +47,7 @@ end entity;
 architecture rtl of uart_baud_detect is
 	--Calculate needed counter sizes and max values
 	constant width_counter_sat_level : natural := 
-		get_clock_divider_int(MAX_CLK_HZ, MIN_DETECT_HZ);
+		clock_divider_int(MAX_CLK_HZ, MIN_DETECT_HZ);
 	constant total_counter_sat_level : natural := 
 		width_counter_sat_level * MAX_BITS_PER_WORD;
 

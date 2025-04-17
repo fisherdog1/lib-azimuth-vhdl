@@ -22,7 +22,7 @@ entity uart_rx_autobaud is
 
 		--Configuration
 		divider_override : 
-			unsigned(bits_required(get_clock_divider_int(MAX_CLK_HZ, MIN_DETECT_BAUD)) - 1 downto 0);
+			unsigned(bits_required(clock_divider_int(MAX_CLK_HZ, MIN_DETECT_BAUD)) - 1 downto 0);
 		divider_override_valid : std_ulogic;
 
 		start_bits : positive range 1 to 2;

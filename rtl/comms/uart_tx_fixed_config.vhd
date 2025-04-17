@@ -32,12 +32,12 @@ entity uart_tx_fixed_config is
 end entity;
 
 architecture rtl of uart_tx_fixed_config is
-	constant fixed_divider : natural := get_clock_divider_int(CLK_HZ, TX_HZ);
+	constant fixed_divider : natural := clock_divider_int(CLK_HZ, TX_HZ);
 	constant bits_required : natural := lib_azimuth.address_math.bits_required(fixed_divider);
 
 	constant divider : unsigned(bits_required - 1 downto 0) := to_unsigned(fixed_divider, bits_required);
 begin
-	assert get_clock_divider_error(CLK_HZ, TX_HZ) < 0.03 
+	assert clock_divider_error(CLK_HZ, TX_HZ) < 0.03 
 		report "Implausible to produce desired baud rate from provided clock!" severity error;
 
 	device: entity lib_azimuth.uart_tx

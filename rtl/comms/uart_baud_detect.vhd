@@ -86,6 +86,7 @@ architecture rtl of uart_baud_detect is
 	subtype prev_pulse_ptr_t is natural range 0 to MAX_BITS_PER_WORD;
 	signal prev_pulses : prev_pulse_array_t := (others => (others => '0'));
 	signal prev_pulse_ptr : prev_pulse_ptr_t := 0;
+	signal first_pulse : boolean;
 
 	subtype width_index_t is natural range 3 to width_counter_t'left;
 	signal width_index : width_index_t := width_counter_t'left;
@@ -148,7 +149,7 @@ architecture rtl of uart_baud_detect is
 		variable msb : natural;
 	begin
 		--Has width range not been estimated yet?
-		if width_index = width_counter_t'left then
+		if first_pulse then
 			for I in v'left downto 3 loop
 				msb := I;
 
@@ -179,6 +180,9 @@ begin
 		else estimated_word_width(width_counter_t'left downto 0);
 
 	width_counter_prev_msb <= width_counter_prev(width_index downto width_index - 3);
+
+	--First detected pulse period for estimating width exponent?
+	first_pulse <= prev_pulse_ptr = 0;
 
 	process (clk)
 		variable prev : prev_pulse_t;

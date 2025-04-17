@@ -27,12 +27,11 @@ entity pulse_measure is
 		--Output
 		pulse_width_high : out 
 			unsigned(cycles_counter_width(MAX_CLK_HZ, MAX_DETECT_PERIOD) - 1 downto 0);
-		pulse_width_high_valid : out std_ulogic;
+		pulse_width_high_valid : out std_ulogic := '0';
 
 		pulse_width_low : out 
 			unsigned(cycles_counter_width(MAX_CLK_HZ, MAX_DETECT_PERIOD) - 1 downto 0);
-		pulse_width_low_valid : out std_ulogic
-		);
+		pulse_width_low_valid : out std_ulogic  := '0');
 end entity;
 
 architecture rtl of pulse_measure is

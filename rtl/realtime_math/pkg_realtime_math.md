@@ -20,11 +20,11 @@ Returns a period as above, but with a variation specified in picoseconds.
 Returns a range of possible clock frequencies given a nominal frequency and variation in either direction specified in UI.
 ### clock_minmax_frequency_ps(frequency : clock_t; ps : real) return clock_minmax_t
 Returns a range of possible clock frequencies given a nominal frequency and period variation in either direction specified in picoseconds.
-### get_clock_divider(input_clock, desired_clock : clock_t) return get_clock_divider_result_t
+### clock_divider(input_clock, desired_clock : clock_t) return get_clock_divider_result_t
 Returns the integer and fractional parts of the divisor required to convert one frequency to another.
-### get_clock_divider_int(input_clock, desired_clock : clock_t) return natural
+### clock_divider_int(input_clock, desired_clock : clock_t) return natural
 Calls get_clock_divider and returns only the integer part
-### get_clock_divider_error(input_clock, desired_clock : clock_t) return real
+### clock_divider_error(input_clock, desired_clock : clock_t) return real
 Calls get_clock_divider and returns the factor of error if division is performed using only the integer part.
 ### cycles_ui_to_no_more_than(frequency : clock_t; ui : real; realtime : real) return natural
 Returns the number of cycles at a given frequency which will be closest to the specified (real) time in seconds, but will not be any greater under the worst case variation specified in UI.

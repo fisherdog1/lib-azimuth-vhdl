@@ -15,35 +15,35 @@ entity bpi_axi_mgr_wrapper is
 		rst : std_ulogic;
 
 		--BPI interface
-		bpi_in : std_ulogic_vector(7 downto 0);
-		bpi_out : out std_ulogic_vector(7 downto 0);
-		bpi_in_valid : std_ulogic;
-		bpi_in_ready : out std_ulogic;
-		bpi_out_valid : out std_ulogic;
-		bpi_out_ready : std_ulogic;
+		bpi_in : std_logic_vector(7 downto 0);
+		bpi_out : out std_logic_vector(7 downto 0);
+		bpi_in_valid : std_logic;
+		bpi_in_ready : out std_logic;
+		bpi_out_valid : out std_logic;
+		bpi_out_ready : std_logic;
 
 		--AXI Manager
-		m_axi_awaddr : out std_ulogic_vector(31 downto 0);
-		m_axi_awvalid : out std_ulogic;
-		m_axi_awready : std_ulogic;
+		m_axi_awaddr : out std_logic_vector(31 downto 0);
+		m_axi_awvalid : out std_logic;
+		m_axi_awready : std_logic;
 
-		m_axi_wdata : out std_ulogic_vector(31 downto 0);
-		m_axi_wstrb : out std_ulogic_vector(3 downto 0);
-		m_axi_wvalid : out std_ulogic;
-		m_axi_wready : std_ulogic;
+		m_axi_wdata : out std_logic_vector(31 downto 0);
+		m_axi_wstrb : out std_logic_vector(3 downto 0);
+		m_axi_wvalid : out std_logic;
+		m_axi_wready : std_logic;
 
-		m_axi_bresp : std_ulogic_vector(1 downto 0);
-		m_axi_bvalid : std_ulogic;
-		m_axi_bready : out std_ulogic;
+		m_axi_bresp : std_logic_vector(1 downto 0);
+		m_axi_bvalid : std_logic;
+		m_axi_bready : out std_logic;
 
-		m_axi_araddr : out std_ulogic_vector(31 downto 0);
-		m_axi_arvalid : out std_ulogic;
-		m_axi_arready : std_ulogic;
+		m_axi_araddr : out std_logic_vector(31 downto 0);
+		m_axi_arvalid : out std_logic;
+		m_axi_arready : std_logic;
 
-		m_axi_rdata : std_ulogic_vector(31 downto 0);
-		m_axi_rresp : std_ulogic_vector(1 downto 0);
-		m_axi_rvalid : std_ulogic;
-		m_axi_rready : out std_ulogic);
+		m_axi_rdata : std_logic_vector(31 downto 0);
+		m_axi_rresp : std_logic_vector(1 downto 0);
+		m_axi_rvalid : std_logic;
+		m_axi_rready : out std_logic);
 end entity;
 
 architecture rtl of bpi_axi_mgr_wrapper is

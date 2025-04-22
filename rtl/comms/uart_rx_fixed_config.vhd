@@ -8,7 +8,7 @@ library lib_azimuth;
 	use lib_azimuth.address_math.bits_required;
 
 --Uart TX with fixed configuration
-entity uart_tx_fixed_config is
+entity uart_rx_fixed_config is
 	generic (
 		CLK_HZ : natural := 100e6;
 		TX_HZ : natural := 115200;
@@ -23,26 +23,26 @@ entity uart_tx_fixed_config is
 		rst : std_ulogic;
 
 		--Data
-		tx_data : std_ulogic_vector(DATA_BITS - 1 downto 0);
-		tx_data_valid : std_ulogic;
-		tx_data_ready : out std_ulogic;
+		rx_data : out std_ulogic_vector(DATA_BITS - 1 downto 0);
+		rx_data_valid : out std_ulogic;
+		rx_data_ready : std_ulogic;
 
 		--Phy
-		tx : out std_ulogic);
+		rx : std_ulogic);
 end entity;
 
-architecture rtl of uart_tx_fixed_config is
+architecture rtl of uart_rx_fixed_config is
 	constant fixed_divider : natural := clock_divider_int(CLK_HZ, TX_HZ);
 	constant bits_required : natural := lib_azimuth.address_math.bits_required(fixed_divider);
 
 	constant divider : unsigned(bits_required - 1 downto 0) := to_unsigned(fixed_divider, bits_required);
 
-	signal tx_data_padded : std_ulogic_vector(9 downto 0);
+	signal rx_data_padded : std_ulogic_vector(9 downto 0);
 begin
 	assert clock_divider_error(CLK_HZ, TX_HZ) < 0.03 
 		report "Implausible to produce desired baud rate from provided clock!" severity error;
 
-	tx_data <= tx_data_padded(DATA_BITS - 1 downto 0);
+	rx_data <= rx_data_padded(DATA_BITS - 1 downto 0);
 
 	device: entity lib_azimuth.uart_tx
 	port map (
@@ -56,9 +56,9 @@ begin
 		use_parity => USE_PARITY,
 		even_parity => EVEN_PARITY,
 
-		tx_data => tx_data_padded,
-		tx_data_valid => tx_data_valid,
-		tx_data_ready => tx_data_ready,
+		rx_data => rx_data_padded,
+		rx_data_valid => rx_data_valid,
+		rx_data_ready => rx_data_ready,
 
-		tx => tx);
+		tx => rx);
 end architecture;

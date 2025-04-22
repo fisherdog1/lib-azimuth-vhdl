@@ -60,5 +60,5 @@ begin
 		rx_data_valid => rx_data_valid,
 		rx_data_ready => rx_data_ready,
 
-		tx => rx);
+		rx => rx);
 end architecture;

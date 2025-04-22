@@ -60,12 +60,12 @@ architecture rtl of bpi_axi_mgr_wrapper is
 begin
 	bpi_in_ready <= std_logic(bpi_in_ready_buf);
 	bpi_out_valid <= std_logic(bpi_out_valid_buf);
-	m_axi_awaddr <= std_logic(m_axi_awaddr_buf);
+	m_axi_awaddr <= std_logic_vector(m_axi_awaddr_buf);
 	m_axi_awvalid <= std_logic(m_axi_awvalid_buf);
-	m_axi_wdata <= std_logic(m_axi_wdata_buf);
+	m_axi_wdata <= std_logic_vector(m_axi_wdata_buf);
 	m_axi_wvalid <= std_logic(m_axi_wvalid_buf);
 	m_axi_bready <= std_logic(m_axi_bready_buf);
-	m_axi_araddr <= std_logic(m_axi_araddr_buf);
+	m_axi_araddr <= std_logic_vector(m_axi_araddr_buf);
 	m_axi_arvalid <= std_logic(m_axi_arvalid_buf);
 	m_axi_rready <= std_logic(m_axi_rready_buf);
 
@@ -76,8 +76,8 @@ begin
 		clk => clk,
 		rst => rst,
 
-		bpi_in => bpi_in,
-		bpi_out => bpi_out,
+		bpi_in => std_ulogic_vector(bpi_in),
+		std_logic_vector(bpi_out) => bpi_out,
 		bpi_in_valid => bpi_in_valid,
 		bpi_in_ready => bpi_in_ready_buf,
 		bpi_out_valid => bpi_out_valid_buf,
@@ -88,11 +88,11 @@ begin
 		m_axi_awready => m_axi_awready,
 
 		m_axi_wdata => m_axi_wdata_buf,
-		m_axi_wstrb => m_axi_wstrb,
+		std_logic_vector(m_axi_wstrb) => m_axi_wstrb,
 		m_axi_wvalid => m_axi_wvalid_buf,
 		m_axi_wready => m_axi_wready,
 
-		m_axi_bresp => m_axi_bresp,
+		m_axi_bresp => std_ulogic_vector(m_axi_bresp),
 		m_axi_bvalid => m_axi_bvalid,
 		m_axi_bready => m_axi_bready_buf,
 
@@ -100,8 +100,8 @@ begin
 		m_axi_arvalid => m_axi_arvalid_buf,
 		m_axi_arready => m_axi_arready,
 
-		m_axi_rdata => m_axi_rdata,
-		m_axi_rresp => m_axi_rresp,
+		m_axi_rdata => std_ulogic_vector(m_axi_rdata),
+		m_axi_rresp => std_ulogic_vector(m_axi_rresp),
 		m_axi_rvalid => m_axi_rvalid,
 		m_axi_rready => m_axi_rready_buf);
 end architecture;

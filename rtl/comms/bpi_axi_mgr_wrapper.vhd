@@ -58,16 +58,16 @@ architecture rtl of bpi_axi_mgr_wrapper is
 	signal m_axi_arvalid_buf : std_ulogic;
 	signal m_axi_rready_buf : std_ulogic;
 begin
-	bpi_in_ready <= bpi_in_ready_buf;
-	bpi_out_valid <= bpi_out_valid_buf;
-	m_axi_awaddr <= m_axi_awaddr_buf;
-	m_axi_awvalid <= m_axi_awvalid_buf;
-	m_axi_wdata <= m_axi_wdata_buf;
-	m_axi_wvalid <= m_axi_wvalid_buf;
-	m_axi_bready <= m_axi_bready_buf;
-	m_axi_araddr <= m_axi_araddr_buf;
-	m_axi_arvalid <= m_axi_arvalid_buf;
-	m_axi_rready <= m_axi_rready_buf;
+	bpi_in_ready <= std_logic(bpi_in_ready_buf);
+	bpi_out_valid <= std_logic(bpi_out_valid_buf);
+	m_axi_awaddr <= std_logic(m_axi_awaddr_buf);
+	m_axi_awvalid <= std_logic(m_axi_awvalid_buf);
+	m_axi_wdata <= std_logic(m_axi_wdata_buf);
+	m_axi_wvalid <= std_logic(m_axi_wvalid_buf);
+	m_axi_bready <= std_logic(m_axi_bready_buf);
+	m_axi_araddr <= std_logic(m_axi_araddr_buf);
+	m_axi_arvalid <= std_logic(m_axi_arvalid_buf);
+	m_axi_rready <= std_logic(m_axi_rready_buf);
 
 	inner: entity lib_azimuth.bpi_axi_mgr
 	generic map (

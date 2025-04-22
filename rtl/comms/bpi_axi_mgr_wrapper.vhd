@@ -47,7 +47,28 @@ entity bpi_axi_mgr_wrapper is
 end entity;
 
 architecture rtl of bpi_axi_mgr_wrapper is
+	signal bpi_in_ready_buf : std_ulogic;
+	signal bpi_out_valid_buf : std_ulogic;
+	signal m_axi_awaddr_buf : std_ulogic;
+	signal m_axi_awvalid_buf : std_ulogic;
+	signal m_axi_wdata_buf : std_ulogic;
+	signal m_axi_wvalid_buf : std_ulogic;
+	signal m_axi_bready_buf : std_ulogic;
+	signal m_axi_araddr_buf : std_ulogic;
+	signal m_axi_arvalid_buf : std_ulogic;
+	signal m_axi_rready_buf : std_ulogic;
 begin
+	bpi_in_ready <= bpi_in_ready_buf;
+	bpi_out_valid <= bpi_out_valid_buf;
+	m_axi_awaddr <= m_axi_awaddr_buf;
+	m_axi_awvalid <= m_axi_awvalid_buf;
+	m_axi_wdata <= m_axi_wdata_buf;
+	m_axi_wvalid <= m_axi_wvalid_buf;
+	m_axi_bready <= m_axi_bready_buf;
+	m_axi_araddr <= m_axi_araddr_buf;
+	m_axi_arvalid <= m_axi_arvalid_buf;
+	m_axi_rready <= m_axi_rready_buf;
+
 	inner: entity lib_azimuth.bpi_axi_mgr
 	generic map (
 		FIFO_DEPTH => FIFO_DEPTH)
@@ -58,29 +79,29 @@ begin
 		bpi_in => bpi_in,
 		bpi_out => bpi_out,
 		bpi_in_valid => bpi_in_valid,
-		bpi_in_ready => bpi_in_ready,
-		bpi_out_valid => bpi_out_valid,
+		bpi_in_ready => bpi_in_ready_buf,
+		bpi_out_valid => bpi_out_valid_buf,
 		bpi_out_ready => bpi_out_ready,
 
-		m_axi_awaddr => m_axi_awaddr,
-		m_axi_awvalid => m_axi_awvalid,
+		m_axi_awaddr => m_axi_awaddr_buf,
+		m_axi_awvalid => m_axi_awvalid_buf,
 		m_axi_awready => m_axi_awready,
 
-		m_axi_wdata => m_axi_wdata,
+		m_axi_wdata => m_axi_wdata_buf,
 		m_axi_wstrb => m_axi_wstrb,
-		m_axi_wvalid => m_axi_wvalid,
+		m_axi_wvalid => m_axi_wvalid_buf,
 		m_axi_wready => m_axi_wready,
 
 		m_axi_bresp => m_axi_bresp,
 		m_axi_bvalid => m_axi_bvalid,
-		m_axi_bready => m_axi_bready,
+		m_axi_bready => m_axi_bready_buf,
 
-		m_axi_araddr => m_axi_araddr,
-		m_axi_arvalid => m_axi_arvalid,
+		m_axi_araddr => m_axi_araddr_buf,
+		m_axi_arvalid => m_axi_arvalid_buf,
 		m_axi_arready => m_axi_arready,
 
 		m_axi_rdata => m_axi_rdata,
 		m_axi_rresp => m_axi_rresp,
 		m_axi_rvalid => m_axi_rvalid,
-		m_axi_rready => m_axi_rready);
+		m_axi_rready => m_axi_rready_buf);
 end architecture;

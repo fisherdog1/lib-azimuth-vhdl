@@ -18,31 +18,33 @@ entity bpi_axi_mgr is
 		bpi_in : std_ulogic_vector(7 downto 0);
 		bpi_out : out std_ulogic_vector(7 downto 0);
 		bpi_in_valid : std_ulogic;
-		bpi_in_ready : out std_ulogic;
-		bpi_out_valid : out std_ulogic;
+		bpi_in_ready : buffer std_ulogic;
+		bpi_out_valid : buffer std_ulogic;
 		bpi_out_ready : std_ulogic;
 
 		--AXI Manager
 		m_axi_awaddr : buffer std_ulogic_vector(31 downto 0);
-		m_axi_awvalid : buffer std_ulogic;
+		m_axi_awvalid : buffer std_ulogic := '0';
 		m_axi_awready : std_ulogic;
 
 		m_axi_wdata : buffer std_ulogic_vector(31 downto 0);
 		m_axi_wstrb : out std_ulogic_vector(3 downto 0);
-		m_axi_wvalid : buffer std_ulogic;
+		m_axi_wvalid : buffer std_ulogic := '0';
 		m_axi_wready : std_ulogic;
 
 		m_axi_bresp : std_ulogic_vector(1 downto 0);
 		m_axi_bvalid : std_ulogic;
-		m_axi_bready : buffer std_ulogic;
+		m_axi_bready : buffer std_ulogic := '0';
 
-		m_axi_araddr : buffer std_ulogic_vector(31 downto 0);
-		m_axi_arvalid : buffer std_ulogic;
+		m_axi_araddr : buffer std_ulogic_vector(31 downto 0)
+			:= (others => '0');
+		m_axi_arvalid : buffer std_ulogic := '0';
 		m_axi_arready : std_ulogic;
 
 		m_axi_rdata : std_ulogic_vector(31 downto 0);
+		m_axi_rresp : std_ulogic_vector(1 downto 0);
 		m_axi_rvalid : std_ulogic;
-		m_axi_rready : buffer std_ulogic);
+		m_axi_rready : buffer std_ulogic := '0');
 end entity;
 
 architecture rtl of bpi_axi_mgr is
@@ -63,6 +65,7 @@ architecture rtl of bpi_axi_mgr is
 
 	--BPI interface side of read fifo
 	signal read_fifo_valid : std_ulogic;
+	signal read_fifo_ready : std_ulogic;
 
 	--Exec side of read fifo
 	signal read_fifo_data : std_ulogic_vector(7 downto 0);
@@ -70,13 +73,17 @@ architecture rtl of bpi_axi_mgr is
 	signal read_fifo_data_valid : std_ulogic := '0';
 begin
 	--Accept data when waiting for command bytes or fifo data
-	bpi_in_ready <= '1' when not bpi_state.command_valid or bpi_state.push_write_fifo else '0';
+	bpi_in_ready <= '1' when 
+		(not bpi_state.command_valid 
+		and not bpi_state.pop_read_fifo)
+		or bpi_state.push_write_fifo 
+		else '0';
 
 	write_fifo_we <= '1' when bpi_state.push_write_fifo and bpi_in_valid = '1' else '0';
 	write_fifo_overflow <= write_fifo_we and not write_fifo_ready;
 
-	--TODO: gate this on responses
-	bpi_out_valid <= read_fifo_valid;
+	bpi_out_valid <= read_fifo_valid when bpi_state.pop_read_fifo else '0';
+	read_fifo_ready <= bpi_out_ready when bpi_state.pop_read_fifo else '0';
 
 	write_fifo: entity work.sync_fifo
 	generic map (
@@ -114,7 +121,7 @@ begin
 		--number of bytes provided.
 		read_data => bpi_out,
 		read_data_valid => read_fifo_valid,
-		read_data_ready => bpi_out_ready);
+		read_data_ready => read_fifo_ready);
 
 	process (clk)
 		variable bpxi_op : bpxi_operation;
@@ -164,18 +171,34 @@ begin
 
 		write_fifo_data_ready <= '0';
 		read_fifo_data_valid <= '0';
+
+		m_axi_arvalid <= '0';
+		m_axi_rready <= '0';
+		m_axi_awvalid <= '0';
+		m_axi_wvalid <= '0';
+		m_axi_bready <= '0';
 	else
 		bpi_state_temp := bpi_state;
 
-		if bpi_in_valid = '1' then
+		if bpi_out_ready = '1' and bpi_out_valid = '1' then
+			bpi_state_temp.data_count := bpi_state_temp.data_count - 1;
+
+			if bpi_state_temp.data_count = 0 then
+				bpi_state_temp := bpi_state_init;
+			end if;
+		end if;
+
+		if bpi_in_valid = '1' and bpi_in_ready = '1' then
 			--Parse command
 			bpi_parse(bpi_state_temp, bpi_in);
 
 			--Determine state to enter if a command has been activated
 			if bpi_state_temp.command_valid then
-				case bpi_state_temp.exec_type is
-					when X"00" => 
-					when X"01" => 
+				bpxi_op := bpxi_decode(bpi_state_temp.exec_type);
+
+				case bpxi_op is
+					when bpxi_write_word => 
+					when bpxi_read_word => 
 						bpxi_state_temp.state := bpxi_shift_raddr;
 
 					when others => 
@@ -258,11 +281,6 @@ begin
 		--Update state
 		bpxi_state <= bpxi_state_temp;
 		bpi_state <= bpi_state_temp;
-
-		--Read data from fifo
-		if bpi_out_ready = '1' and bpi_state.pop_read_fifo then
-			--TODO
-		end if;
 	end if;
 	end if;
 	end process;

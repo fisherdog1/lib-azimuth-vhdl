@@ -109,7 +109,6 @@ package body bpi is
 					state.data_count := unsigned(data);
 
 					--Execute command
-					state.command_valid := true;
 					state.pop_read_fifo := true;
 
 				when bpi_execute => 

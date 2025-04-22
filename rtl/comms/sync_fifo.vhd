@@ -19,7 +19,10 @@ entity sync_fifo is
 		--Read side
 		read_data : out std_ulogic_vector(WIDTH - 1 downto 0);
 		read_data_valid : buffer std_ulogic := '0';
-		read_data_ready : std_ulogic);
+		read_data_ready : std_ulogic;
+
+		--Other
+		count : out natural range 0 to DEPTH - 1);
 end entity;
 
 architecture rtl of sync_fifo is
@@ -46,6 +49,8 @@ begin
 	read <= read_data_ready = '1' and not read_empty;
 
 	write_data_ready <= '1' when not write_full else '0';
+
+	count <= (write_ptr - read_ptr) mod DEPTH;
 
 	process (clk)
 	begin

@@ -38,11 +38,13 @@ architecture rtl of uart_tx_fixed_config is
 	constant divider : unsigned(bits_required - 1 downto 0) := to_unsigned(fixed_divider, bits_required);
 
 	signal tx_data_padded : std_ulogic_vector(9 downto 0);
+	signal tx_data_ready_buf : std_ulogic;
 begin
 	assert clock_divider_error(CLK_HZ, TX_HZ) < 0.03 
 		report "Implausible to produce desired baud rate from provided clock!" severity error;
 
 	tx_data_padded(DATA_BITS - 1 downto 0) <= tx_data(DATA_BITS - 1 downto 0);
+	tx_data_ready <= tx_data_ready_buf;
 
 	device: entity lib_azimuth.uart_tx
 	port map (
@@ -58,7 +60,7 @@ begin
 
 		tx_data => tx_data_padded,
 		tx_data_valid => tx_data_valid,
-		tx_data_ready => tx_data_ready,
+		tx_data_ready => tx_data_ready_buf,
 
 		tx => tx);
 end architecture;

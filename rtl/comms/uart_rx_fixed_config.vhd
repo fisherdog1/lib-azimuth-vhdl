@@ -38,11 +38,13 @@ architecture rtl of uart_rx_fixed_config is
 	constant divider : unsigned(bits_required - 1 downto 0) := to_unsigned(fixed_divider, bits_required);
 
 	signal rx_data_padded : std_ulogic_vector(9 downto 0);
+	signal rx_data_valid_buf : std_ulogic;
 begin
 	assert clock_divider_error(CLK_HZ, TX_HZ) < 0.03 
 		report "Implausible to produce desired baud rate from provided clock!" severity error;
 
 	rx_data <= rx_data_padded(DATA_BITS - 1 downto 0);
+	rx_data_valid <= rx_data_valid_buf;
 
 	device: entity lib_azimuth.uart_rx
 	port map (
@@ -57,7 +59,7 @@ begin
 		even_parity => EVEN_PARITY,
 
 		rx_data => rx_data_padded,
-		rx_data_valid => rx_data_valid,
+		rx_data_valid => rx_data_valid_buf,
 		rx_data_ready => rx_data_ready,
 
 		rx => rx);

@@ -49,12 +49,12 @@ end entity;
 architecture rtl of bpi_axi_mgr_wrapper is
 	signal bpi_in_ready_buf : std_ulogic;
 	signal bpi_out_valid_buf : std_ulogic;
-	signal m_axi_awaddr_buf : std_ulogic;
+	signal m_axi_awaddr_buf : std_ulogic_vector(31 downto 0);
 	signal m_axi_awvalid_buf : std_ulogic;
-	signal m_axi_wdata_buf : std_ulogic;
+	signal m_axi_wdata_buf : std_ulogic_vector(31 downto 0);
 	signal m_axi_wvalid_buf : std_ulogic;
 	signal m_axi_bready_buf : std_ulogic;
-	signal m_axi_araddr_buf : std_ulogic;
+	signal m_axi_araddr_buf : std_ulogic_vector(31 downto 0);
 	signal m_axi_arvalid_buf : std_ulogic;
 	signal m_axi_rready_buf : std_ulogic;
 begin

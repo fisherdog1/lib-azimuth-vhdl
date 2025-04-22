@@ -179,6 +179,7 @@ begin
 		m_axi_bready <= '0';
 	else
 		bpi_state_temp := bpi_state;
+		bpxi_state_temp := bpxi_state;
 
 		if bpi_out_ready = '1' and bpi_out_valid = '1' then
 			bpi_state_temp.data_count := bpi_state_temp.data_count - 1;
@@ -207,9 +208,6 @@ begin
 		end if;
 
 		if bpi_state_temp.command_valid then
-			--Execute (or continue executing) command
-			bpxi_state_temp := bpxi_state;
-
 			--Decode bpxi (needed for VHDL 93 to accept case statement below)
 			bpxi_op := bpxi_decode(bpi_state_temp.exec_type);
 

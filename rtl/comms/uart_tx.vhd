@@ -32,6 +32,7 @@ architecture rtl of uart_tx is
 	subtype shiftreg_t is std_ulogic_vector(14 downto 0);
 	signal tx_clken : std_ulogic;
 	signal tx_accept : boolean;
+	signal tx_done : std_ulogic;
 	signal shiftreg : shiftreg_t := (others => '1');
 	signal counter : unsigned(3 downto 0) := (others => '0');
 
@@ -78,17 +79,18 @@ architecture rtl of uart_tx is
 		return start_bits + data_bits + parity_bit + stop_bits;
 	end function;
 begin
-	tx_data_ready <= '1' when counter = 0 and rst = '0' and tx_clken = '1' else '0';
+	tx_done <= '1' when counter = 0 else '0';
+	tx_data_ready <= '1' when tx_done = '1' and rst = '0' else '0';
 	tx_accept <= (tx_data_valid and tx_data_ready) = '1';
 	tx <= shiftreg(0);
 
 	baud_divider: entity lib_azimuth.clock_enable_divider
 	generic map (
-		FIRST_CYCLE => true,
+		FIRST_CYCLE => false,
 		CHANGE_DIVIDER_IMMEDIATELY => true)
 	port map (
 		clk => clk,
-		rst => rst,
+		rst => tx_done,
 		divider => divider,
 		clkdiv_en => tx_clken);
 
@@ -98,12 +100,11 @@ begin
 			if rst = '1' then
 				shiftreg <= (others => '1');
 				counter <= (others => '0');
-
-			elsif tx_clken = '1' then
+			else
 				if tx_accept then
-					counter <= to_unsigned(total_bits - 1, counter'length);
+					counter <= to_unsigned(total_bits, counter'length);
 					shiftreg <= shiftreg_load_value;
-				else
+				elsif tx_clken = '1' then
 					counter <= counter - 1;
 					shiftreg <= "1" & shiftreg(shiftreg_t'left downto 1);
 				end if;

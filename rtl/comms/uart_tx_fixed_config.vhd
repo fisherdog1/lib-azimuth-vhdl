@@ -42,7 +42,7 @@ begin
 	assert clock_divider_error(CLK_HZ, TX_HZ) < 0.03 
 		report "Implausible to produce desired baud rate from provided clock!" severity error;
 
-	tx_data <= tx_data_padded(DATA_BITS - 1 downto 0);
+	tx_data(DATA_BITS - 1 downto 0) <= tx_data_padded;
 
 	device: entity lib_azimuth.uart_tx
 	port map (

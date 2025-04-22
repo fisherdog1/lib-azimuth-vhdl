@@ -44,7 +44,7 @@ begin
 
 	rx_data <= rx_data_padded(DATA_BITS - 1 downto 0);
 
-	device: entity lib_azimuth.uart_tx
+	device: entity lib_azimuth.uart_rx
 	port map (
 		clk => clk,
 		rst => rst,

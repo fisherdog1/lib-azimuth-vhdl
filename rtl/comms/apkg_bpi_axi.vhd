@@ -9,7 +9,13 @@ package bpi_axi is
 	type bpxi_fs is (
 		bpxi_shift_raddr, 
 		bpxi_wait_rresp, 
-		bpxi_shift_rdata);
+		bpxi_shift_rdata,
+
+		bpxi_shift_waddr,
+		bpxi_shift_wdata,
+		bpxi_wait_wresp,
+		bpxi_wait_bresp,
+		bpxi_shift_bresp);
 
 	type bpxi_operation is (
 		bpxi_nop,

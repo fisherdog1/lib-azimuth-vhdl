@@ -131,7 +131,8 @@ begin
 		variable bpi_state_temp : bpi_state_t;
 		variable shift_ctr : natural range 0 to 7;
 
-		variable m_axi_araddr_temp, m_axi_rdata_temp : std_ulogic_vector(31 downto 0);
+		variable m_axi_addr_temp, m_axi_rdata_temp : std_ulogic_vector(31 downto 0);
+		variable m_axi_temp_resp : std_ulogic_vector(7 downto 0);
 
 		--Wrappers for shift_in_byte / shift_out_byte
 		procedure shift_in(
@@ -198,8 +199,10 @@ begin
 				bpxi_op := bpxi_decode(bpi_state_temp.exec_type);
 
 				case bpxi_op is
-					when bpxi_write_word => 
-					when bpxi_read_word => 
+					when bpxi_write_word =>
+						bpxi_state_temp.state := bpxi_shift_waddr;
+
+					when bpxi_read_word =>
 						bpxi_state_temp.state := bpxi_shift_raddr;
 
 					when others => 
@@ -214,14 +217,83 @@ begin
 			case bpxi_op is
 				when bpxi_write_word =>
 					--Write 32 bit addr
+					case bpxi_state_temp.state is
+						when bpxi_shift_waddr =>
+							m_axi_addr_temp := m_axi_awaddr;
+
+							shift_in(m_axi_addr_temp, 4, shift_done);
+
+							if shift_done then
+								bpxi_state_temp.state := bpxi_shift_wdata;
+							end if;
+
+							m_axi_awaddr <= m_axi_addr_temp;
+
+						when bpxi_shift_wdata =>
+							m_axi_addr_temp := m_axi_wdata;
+
+							shift_in(m_axi_addr_temp, 4, shift_done);
+
+							if shift_done then
+								bpxi_state_temp.state := bpxi_wait_wresp;
+
+								m_axi_awvalid <= '1';
+								m_axi_wvalid <= '1';
+								m_axi_wstrb <= "1111";
+							end if;
+
+							m_axi_wdata <= m_axi_addr_temp;
+
+						when bpxi_wait_wresp =>
+							axi_done := true;
+
+							axi_wait_handshake(
+								m_axi_wvalid,
+								m_axi_wready,
+								axi_done);
+
+							axi_wait_handshake(
+								m_axi_awvalid,
+								m_axi_awready,
+								axi_done);
+
+							if axi_done then
+								bpxi_state_temp.state := bpxi_wait_bresp;
+
+								m_axi_bready <= '1';
+							end if;
+
+						when bpxi_wait_bresp => 
+							axi_done := true;
+
+							axi_wait_handshake(
+								m_axi_bready,
+								m_axi_bvalid,
+								axi_done);
+
+							if axi_done then
+								m_axi_temp_resp := "000000" & m_axi_bresp;
+								bpxi_state_temp.state := bpxi_shift_bresp;
+							end if;
+
+						when bpxi_shift_bresp =>
+							shift_out(m_axi_temp_resp, 1, shift_done);
+
+							if shift_done then
+								bpi_end_command(bpi_state_temp);
+							end if;
+
+						when others =>
+							--Do nothing, unreachable
+					end case;
 				when bpxi_read_word =>
-					--Read 4/Length
+					--Read 32 bit addr
 					case bpxi_state_temp.state is
 						when bpxi_shift_raddr => 
 							--Shift bytes into address
-							m_axi_araddr_temp := m_axi_araddr;
+							m_axi_addr_temp := m_axi_araddr;
 
-							shift_in(m_axi_araddr_temp, 4, shift_done);
+							shift_in(m_axi_addr_temp, 4, shift_done);
 
 							if shift_done then
 								bpxi_state_temp.state := bpxi_wait_rresp;
@@ -230,7 +302,7 @@ begin
 								m_axi_rready <= '1';
 							end if;
 
-							m_axi_araddr <= m_axi_araddr_temp;
+							m_axi_araddr <= m_axi_addr_temp;
 
 						when bpxi_wait_rresp =>
 							--Wait for handshake on both channels

@@ -91,43 +91,46 @@ Any time a Length field is given as its max value, E.g. 255 for a single byte, i
 
 
 ### Commands for both Frontend and Backend
+	NoOp						(Op)
+Does nothing.
+
 	GetStatus					(Op) -> FrontendStatus:2 or BackendStatus
 Get the frontend/backend status. The frontend status field is standardized, while each backend defines its own BackendStatus field.
 
 	GetVersion					(Op) -> Version
 Check the version of the frontend/backend.
 
-	CommandSupported			(Op, SupportedOpcode) -> Success
+	GetCommandSupported			(Op, SupportedOpcode) -> Success
 Check if a command is supported by providing its opcode.
 
 
 ### Frontend Commands
-	SelectBackend				(Op, BackendIndex) -> Success
+	BackendSelect				(Op, BackendIndex) -> Success
 Select which backend (bus) to use. Backend 0 is selected after reset. Changing backends does not affect the ongoing operation of that backend.
 
-	Write						(Op, Length, Data:Length) -> Success
+	CommandWrite				(Op, Length, Data:Length) -> Success
 Write data to the backend command space.
 
-	Verify						(Op, Checksum) -> Success
+	CommandVerify				(Op, Checksum) -> Success
 Verify integrity of all previous writes to command space. When this command is not successful, the command space is cleared.
 
-	Execute						(Op)
+	CommandExecute				(Op)
 Execute one backend command from the command space. The executed command is always a backend command, so its response is written to the response space.
-
-	Read					(Op, Length) -> Response:Length
-Read data from the backend response space.
 
 	CommandLength				(Op) -> Length:4
 Read the length of the command space.
 
+	ResponseRead				(Op, Length) -> Response:Length
+Read data from the backend response space.
+
 	ResponseLength				(Op) -> Length:4
 Read the length of the first available response. Incomplete responses will not appear here. However, see the section on Length Overflows.
 
+	MatchResponseRead			(Op, Match, Length) -> Response:Length
+Read response space data for the first response matching the Match field. The Match and Length fields must be the same values from a preceding MatchResponse command.
+
 	MatchResponseLength			(Op, Match) -> (Success, Length)
 Check for a response corresponding to the Match field. If such a response is available, the command is successful, and the response can be read via the ReadMatchResponse command. Length is always zero for an unsuccessful MatchResponse command. This command is needed to support commands which deal with out-of-order bus transactions, which may generate response data in an arbitrary order. Responses which are visible to the oridinary ReadResponse command are never visible to the Match commands.
-
-	MatchRead				(Op, Match, Length) -> Response:Length
-Read response space data for the first response matching the Match field. The Match and Length fields must be the same values from a preceding MatchResponse command.
 
 
 ### Backend Commands

@@ -119,6 +119,14 @@ package bpi is
 		response_ready : std_ulogic;
 	end record;
 
+	constant bpi_frontend_to_backend_tieoff : bpi_frontend_to_backend_t := (
+		execute_req => '0',
+
+		command => (others => '0'),
+		command_valid => '0',
+
+		response_ready => '0');
+
 	type bpi_backend_to_frontend_t is record
 		available : std_ulogic;
 
@@ -138,6 +146,9 @@ package bpi is
 		response_overflow : std_ulogic;
 		response_underflow : std_ulogic;
 	end record;
+
+	type bpi_frontend_to_backend_array is array (natural range <>) of bpi_frontend_to_backend_t;
+	type bpi_backend_to_frontend_array is array (natural range <>) of bpi_backend_to_frontend_t;
 
 	function bpi_fe_status_to_byte(status : bpi_frontend_status_t) return bpi_frontend_status;
 	function bpi_decode(byte : bpi_byte) return bpi_opcode;

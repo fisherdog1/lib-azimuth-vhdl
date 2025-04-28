@@ -68,13 +68,41 @@ architecture rtl of bpi_axi_mgr is
 
 	--Backend signals
 	--For testing, backend 0 is connected and backend 1 does nothing
-	constant NUM_BACKENDS : natural := 2;
+	constant NUM_BACKENDS : natural := 1;
 	subtype backend_index_t is natural range 0 to NUM_BACKENDS - 1;
 
 	signal backend_index : backend_index_t := 0;
 	signal selected_to_backends : bpi_frontend_to_backend_array(0 to NUM_BACKENDS - 1);
 	signal backends_to_selected : bpi_backend_to_frontend_array(0 to NUM_BACKENDS - 1);
+
+	--From backend command/response space to backend machine
+	signal backend_in : bpi_frontend_to_backend_array(0 to NUM_BACKENDS - 1);
+	signal backend_out : bpi_backend_to_frontend_array(0 to NUM_BACKENDS - 1);
+
+	--AXI signals
+	signal axi4_if_in : axi4_interface_in_t;
+	signal axi4_if_out : axi4_interface_out_t;	
 begin
+	--AXI
+	axi4_if_in.awready <= m_axi_awready;
+	axi4_if_in.wready <= m_axi_wready;
+	axi4_if_in.bresp <= m_axi_bresp;
+	axi4_if_in.bvalid <= m_axi_bvalid;
+	axi4_if_in.arready <= m_axi_arready;
+	axi4_if_in.rdata <= m_axi_rdata;
+	axi4_if_in.rresp <= m_axi_rresp;
+	axi4_if_in.rvalid <= m_axi_rvalid;
+
+	m_axi_awaddr <= axi4_if_out.awaddr;
+	m_axi_awvalid <= axi4_if_out.awvalid;
+	m_axi_wdata <= axi4_if_out.wdata;
+	m_axi_wstrb <= axi4_if_out.wstrb;
+	m_axi_wvalid <= axi4_if_out.wvalid;
+	m_axi_bready <= axi4_if_out.bready;
+	m_axi_araddr <= axi4_if_out.araddr;
+	m_axi_arvalid <= axi4_if_out.arvalid;
+	m_axi_rready <= axi4_if_out.rready;
+
 	--BPI frontend signals group
 	bpi_frontend_if_in.bpi_in <= bpi_in;
 	bpi_frontend_if_in.bpi_in_valid <= bpi_in_valid;
@@ -93,10 +121,10 @@ begin
 	--Mux/Demux to selected backend
 	process (backend_index, backends_to_selected, front_to_selected_if)
 	begin
-	    --To backends...
+		--To backends...
 		for i in 0 to NUM_BACKENDS - 1 loop
 			if i = backend_index then
-			    --...of which only one is selected
+				--...of which only one is selected
 				selected_to_backends(i) <= front_to_selected_if;
 			else
 				selected_to_backends(i) <= bpi_frontend_to_backend_tieoff;
@@ -123,9 +151,9 @@ begin
 			write_data_ready => backends_to_selected(i).command_ready,
 
 			--To selected backend
-			read_data => open,
-			read_data_valid => open,
-			read_data_ready => '0');
+			read_data => backend_in(i).command,
+			read_data_valid => backend_in(i).command_valid,
+			read_data_ready => backend_out(i).command_ready);
 
 		read_fifo: entity work.sync_fifo
 		generic map (
@@ -136,9 +164,9 @@ begin
 			rst => rst,
 
 			--From selected backend
-			write_data => (others => '0'),
-			write_data_valid => '0',
-			write_data_ready => open,
+			write_data => backend_out(i).response,
+			write_data_valid => backend_out(i).response_valid,
+			write_data_ready => backend_in(i).response_ready,
 
 			--To frontend
 			read_data => backends_to_selected(i).response,
@@ -148,14 +176,31 @@ begin
 
 	process (clk)
 	   variable bpi_state : bpi_state_t := bpi_state_init;
+	   variable bpxi_state : bpxi_state_t := bpxi_state_init;
 	begin
 		if rising_edge(clk) then
 			if rst = '1' then
+				--Frontend reset
 				bpi_state := bpi_state_init;
 				bpi_frontend_if_out <= bpi_frontend_init;
 				backend_index <= 0;
 			else
+				--Drive frontend
                 bpi_frontend(bpi_state, bpi_frontend_if_in, bpi_frontend_if_out);
+
+                --Drive each backend, but really just drive one
+
+			end if;
+		end if;
+
+		--AXI backend 0
+		if rising_edge(clk) then
+			if rst = '1' then
+				bpxi_state := bpxi_state_init;
+				axi4_if_out <= axi4_interface_out_init;
+			else
+				--Drive backend
+				bpi_axi_backend(bpxi_state, backend_in(0), backend_out(0), axi4_if_in, axi4_if_out);
 			end if;
 		end if;
 	end process;

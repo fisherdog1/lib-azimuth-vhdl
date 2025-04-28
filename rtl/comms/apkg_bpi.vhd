@@ -153,8 +153,8 @@ package bpi is
 	function bpi_fe_status_to_byte(status : bpi_frontend_status_t) return bpi_frontend_status;
 	function bpi_decode(byte : bpi_byte) return bpi_opcode;
 
-	procedure bpi_frontend_shift_in(variable field : inout unsigned; data : bpi_byte);
-	procedure bpi_frontend_shift_out(variable field : inout unsigned; variable data : out bpi_byte);
+	procedure bpi_byte_shift_in(variable field : inout unsigned; data : bpi_byte);
+	procedure bpi_byte_shift_out(variable field : inout unsigned; variable data : out bpi_byte);
 	procedure bpi_frontend(
 		variable state : inout bpi_state_t; 
 		signal interface_in : in bpi_frontend_if_in_t;
@@ -179,14 +179,14 @@ package body bpi is
 	end function;
 
 	--Shift byte into variable for frontend commands
-	procedure bpi_frontend_shift_in(variable field : inout unsigned; data : bpi_byte) is
+	procedure bpi_byte_shift_in(variable field : inout unsigned; data : bpi_byte) is
 	begin
 		--Right shift byte into field
 		field := unsigned(data) & field(field'left downto 8);
 	end procedure;
 
 	--Shift byte out of variable for frontend commands
-	procedure bpi_frontend_shift_out(variable field : inout unsigned; variable data : out bpi_byte) is
+	procedure bpi_byte_shift_out(variable field : inout unsigned; variable data : out bpi_byte) is
 	begin
 		data := bpi_byte(field(7 downto 0));
 		field := X"00" & field(field'left downto 8);
@@ -196,7 +196,7 @@ package body bpi is
 	--Run every cycle in the BPI frontend's clock domain
 	procedure bpi_frontend(
 		variable state : inout bpi_state_t; 
-		signal interface_in : in bpi_frontend_if_in_t;
+		signal interface_in : bpi_frontend_if_in_t;
 		signal interface_out : inout bpi_frontend_if_out_t) 
 	is
 		variable opcode : bpi_opcode;
@@ -219,7 +219,7 @@ package body bpi is
 
 			--Ready will not be 1 on first call
 			if interface_in.bpi_in_valid = '1' and interface_out.bpi_in_ready = '1' then
-				bpi_frontend_shift_in(state.shiftreg, interface_in.bpi_in);
+				bpi_byte_shift_in(state.shiftreg, interface_in.bpi_in);
 
 				state.data_count := state.data_count - 1;
 			end if;
@@ -251,14 +251,14 @@ package body bpi is
 				interface_out.bpi_out_valid <= '1';
 
 				--Show first byte
-				bpi_frontend_shift_out(state.shiftreg, temp);
+				bpi_byte_shift_out(state.shiftreg, temp);
 				interface_out.bpi_out <= temp;
 			end if;
 
 			--Valid will not be 1 on the first call
 			if interface_out.bpi_out_valid = '1' and interface_in.bpi_out_ready = '1' then
 				--Show next byte
-				bpi_frontend_shift_out(state.shiftreg, temp);
+				bpi_byte_shift_out(state.shiftreg, temp);
 				interface_out.bpi_out <= temp;
 
 				state.data_count := state.data_count - 1;

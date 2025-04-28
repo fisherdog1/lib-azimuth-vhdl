@@ -33,7 +33,7 @@ The command will prevent the frontend from being used until it completes, usuall
 
 All Frontend commands only require the frontend to be operational to complete. However, frontend commands which execute the backend and wait for a response may hang.
 
-## Command Fields
+### Command Fields
 Commands are represented by function / return syntax such as the following:
 Opcode, Data:2 -> Response
 Opcode, Length:2, Data:Length -> Response:Length\*2
@@ -42,6 +42,24 @@ Each comma-separated item is a field in the command or its response respectively
 
 Frontend commands are executed by sending the fields specified over the peripheral command channel. Backend commands are executed by reading from their command space. Frontend responses are immediately sent over the peripheral response channel. backend responses are written to their response space.
 
+### Backend Switching
+The BPI frontend can select from multiple available backends. The backend may be switched even if the current or new backend are executing a command. However, the current backend must not be undergoing a sync. A backend select command can always fail, so the user must always check the success response from the frontend.
+
+## Sync Semantics
+The frontend-to-backend interface is designed to transfer commands, responses, and other signals in an atomic fashion. The sync action is not directly observable by the user, but is frequently user-initiated.
+
+### Sync groups
+Signals between the frontend and backend each belong to a specific sync group. Signals in the same group appear at their destination at the same time. There is no timing relationship between signals in different groups, except as explicitly stated here.
+
+### Command and Response Syncs
+At the backend, commands will be observed as arriving all at once, even though bytes are received by the frontend one at a time. When this occurs, it is known as a command sync. Conversely, the frontend will perceive responses arriving all at once, and is known as a response sync. Zero or more commands or responses may be transfered by a sync.
+
+### Execute Sync
+The signals to trigger execution in the backend have a sync group. The selected backend may not be changed while the execute sync is ongoing, and an execute sync may not begin while a command sync is ongoing. The execute sync is user-initiated by the Execute frontend command. After an execute sync, all commands which were received before the execute sync are processed by the backend. Any commands which follow the initiation of the execute sync will not be executed until the next execute sync.
+
+Once an execute sync is complete, the frontend may accept further commands.
+
+Commands are always executed in the order they were received. Likewise, responses are always returned in the same order as commands. There is no ordering between command executions and response between different backends.
 
 ### Named fields
 The following fields have a specific meaning. Any other field names are chosen only for descriptiveness.

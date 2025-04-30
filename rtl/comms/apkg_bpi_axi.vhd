@@ -81,13 +81,6 @@ package bpi_axi is
 		bpxi_wait_bresp,
 		bpxi_shift_bresp);
 
-	--Per-AXI-channel status
-	type bpxi_channel_status is (
-		axi_chan_idle,			--Mgr = 0 Sub = 0
-		axi_chan_mgr_wait,		--Mgr = 1 Sub = 0
-		axi_chan_sub_wait,		--Mgr = 0 Sub = 1
-		axi_chan_accepting);	--Mgr = 1 Sub = 1
-
 	type bpxi_state_t is record
 		--Currently executing operation and sub-operation
 		current_op : bpxi_opcode;
@@ -106,7 +99,7 @@ package bpi_axi is
 		--TODO
 
 		--Number of cycles left in shift step
-		shift_counter : natural range 0 to 7;
+		shift_counter : bpxi_length;
 	end record;
 
 	constant bpxi_state_init : bpxi_state_t := (
@@ -138,9 +131,9 @@ package body bpi_axi is
 			return b;
 		end if;
 	end function;
-	
+
 	--Get opcode from command Op byte
-	function bpxi_decode(byte : bpxi_byte) return bpxi_opcode is
+	function bpxi_decode (byte : bpxi_byte) return bpxi_opcode is
 	begin
 		for op in bpxi_opcode loop
 			if bpxi_operation_encoding(op) = byte then
@@ -153,7 +146,7 @@ package body bpi_axi is
 
 	--Check status of ready/valid handshake
 	--The manager- and subordinate-side signals are passed regardless of if they are Ready or Valid
-	procedure check_handshake(
+	procedure check_handshake (
 		signal mgr : inout std_ulogic;
 		signal sub : std_ulogic;
 		variable done : out boolean) is
@@ -173,7 +166,7 @@ package body bpi_axi is
 
 	--BPI AXI backend
 	--Run every cycle in the backend clock domain
-	procedure bpi_axi_backend(
+	procedure bpi_axi_backend (
 		variable state : inout bpxi_state_t;
 		signal backend_if_in : bpi_frontend_to_backend_t;
 		signal backend_if_out : inout bpi_backend_to_frontend_t;
@@ -184,6 +177,10 @@ package body bpi_axi is
 		variable shift_out_used : boolean;
 		variable shift_in_done : boolean;
 		variable shift_out_done : boolean;
+
+		variable prev_op : bpxi_opcode;
+		variable prev_phase : bpxi_fs;
+		variable enable_load_shift_counter : boolean;
 
 		--Shift command data into variable based on state.shift_counter
 		--Sets shift_in_done on the cycle when the data is ready
@@ -255,6 +252,13 @@ package body bpi_axi is
 			end if;
 		end procedure;
 
+		procedure load_shift_counter (count : bpxi_length) is
+		begin
+			if enable_load_shift_counter then
+				state.shift_counter := count;
+			end if;
+		end procedure;
+
 		procedure end_command is
 		begin
 			state.current_op := bpxi_nop;
@@ -275,6 +279,83 @@ package body bpi_axi is
 		variable b_done : boolean;
 		variable ar_done : boolean;
 		variable r_done : boolean;
+
+		procedure state_substep is
+		begin
+			--Current operation
+			case state.current_op is
+				when bpxi_nop => 
+					--Start new operation
+					--TODO: gate on execute sync
+					if backend_if_in.execute_req = '1' then
+						shift_in(temp_opcode);
+					end if;
+
+					if shift_in_done then
+						state.current_op := bpxi_decode(temp_opcode);
+						backend_if_out.execute_ack <= '1'; --Not sure about this
+					end if;
+
+				when bpxi_read_word =>
+					case state.current_op_phase is
+						when bpxi_shift_raddr => 
+							--Move command into raddr
+							load_shift_counter(4);
+							shift_in(state.temp_addr);
+
+							if shift_in_done then
+								axi4_if_out.araddr <= state.temp_addr;
+								axi4_if_out.arvalid <= '1';
+								axi4_if_out.rready <= '1';
+								state.current_op_phase := bpxi_wait_rresp;
+							end if;
+
+						when bpxi_wait_rresp => 
+							--Wait for rresp handshake
+							--A sub that illegally asserts rvalid the same cycle as arrvalid breaks this
+							if r_done then
+								state.temp_data := axi4_if_in.rdata;
+								state.temp_resp := axi4_if_in.rresp;
+
+								state.current_op_phase := bpxi_shift_rdata;
+							end if;
+
+						when bpxi_shift_rdata => 
+							--Move rdata and rresp to response space
+							load_shift_counter(4);
+							shift_out(state.temp_data);
+
+							if shift_out_done then
+								state.current_op_phase := bpxi_shift_rresp;
+							end if;
+
+						when bpxi_shift_rresp => 
+							load_shift_counter(1);
+							shift_out(state.temp_resp);
+
+							if shift_out_done then
+								end_command;
+							end if;
+
+						when others => 
+							end_command;
+					end case;
+
+				when bpxi_write_word =>
+					case state.current_op_phase is
+						when bpxi_shift_waddr => 
+						when bpxi_shift_wdata => 
+						when bpxi_wait_wresp => 
+						when bpxi_wait_bresp => 
+						when bpxi_shift_bresp => 
+						when others => 
+							end_command;
+					end case;
+
+				when others => 
+					--Unsupported or nop
+			end case;
+		end procedure;
 	begin
 		--Whether shift in/out is done
 		shift_in_done := false;
@@ -292,86 +373,16 @@ package body bpi_axi is
 		check_handshake(axi4_if_out.arvalid, axi4_if_in.arready, ar_done);	--AR
 		check_handshake(axi4_if_out.rready, axi4_if_in.rvalid, r_done);		--R
 
-		--Current operation
-		case state.current_op is
-			when bpxi_nop => 
-				--Start new operation
-				--TODO: gate on execute sync
-				if backend_if_in.execute_req = '1' then
-					shift_in(temp_opcode);
-				end if;
+		--Run initial state machine step
+		prev_op := state.current_op;
+		prev_phase := state.current_op_phase;
+		enable_load_shift_counter := false;
+		state_substep;
 
-				if shift_in_done then
-					state.current_op := bpxi_decode(temp_opcode);
-					backend_if_out.execute_ack <= '1'; --Not sure about this
-
-					--Right now this is true for the first phase of all AXI commands
-					--Workaround for needing to know the first shift count early!
-					state.shift_counter := 4;
-					shift_in(state.temp_addr);
-				end if;
-
-			when bpxi_read_word =>
-				case state.current_op_phase is
-					when bpxi_shift_raddr => 
-						--Move command into raddr
-						shift_in(state.temp_addr);
-
-						if shift_in_done then
-							axi4_if_out.araddr <= state.temp_addr;
-							axi4_if_out.arvalid <= '1';
-							axi4_if_out.rready <= '1';
-							state.current_op_phase := bpxi_wait_rresp;
-						end if;
-
-					when bpxi_wait_rresp => 
-						--Wait for rresp handshake
-						--A sub that illegally asserts rvalid the same cycle as arrvalid breaks this
-						if r_done then
-							state.temp_data := axi4_if_in.rdata;
-							state.temp_resp := axi4_if_in.rresp;
-
-							state.shift_counter := 4;
-							shift_out(state.temp_data);
-
-							state.current_op_phase := bpxi_shift_rdata;
-						end if;
-
-					when bpxi_shift_rdata => 
-						--Move rdata and rresp to response space
-						shift_out(state.temp_data);
-
-						if shift_out_done then
-							state.current_op_phase := bpxi_shift_rresp;
-
-							state.shift_counter := 1;
-							shift_out(state.temp_resp);
-						end if;
-
-					when bpxi_shift_rresp => 
-						shift_out(state.temp_resp);
-
-						if shift_out_done then
-							end_command;
-						end if;
-
-					when others => 
-						end_command;
-				end case;
-
-			when bpxi_write_word =>
-				case state.current_op_phase is
-					when bpxi_shift_waddr => 
-					when bpxi_shift_wdata => 
-					when bpxi_wait_wresp => 
-					when bpxi_wait_bresp => 
-					when bpxi_shift_bresp => 
-					when others => 
-						end_command;
-				end case;
-
-			when others => 
-				--Unsupported or nop
-		end case;
+		--Load counters if phase or opcode just changed
+		if prev_op /= state.current_op or prev_phase /= state.current_op_phase then
+			enable_load_shift_counter := true;
+			state_substep;
+		end if;
 	end procedure;
 end package body;

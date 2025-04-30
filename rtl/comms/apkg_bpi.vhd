@@ -43,6 +43,7 @@ package bpi is
 		bpi_get_version => true,
 		bpi_get_command_supported => true,
 		bpi_command_write => true,
+		bpi_command_execute => true,
 		bpi_response_read => false,
 		others => false); --TODO: Im gonna forget otherwise
 
@@ -85,6 +86,12 @@ package bpi is
 		bpi_in : bpi_byte;
 		bpi_in_valid : std_ulogic;
 		bpi_out_ready : std_ulogic;
+
+		--FIFO feedback
+		bpi_in_ready : std_ulogic;
+		bpi_out_valid : std_ulogic;
+
+		execute_ack : std_ulogic;
 	end record;
 
 	type bpi_frontend_if_out_t is record
@@ -97,7 +104,7 @@ package bpi is
 		write_command : std_ulogic;
 		read_response :std_ulogic;
 
-		backend_execute : std_ulogic;
+		execute_req : std_ulogic;
 	end record;
 
 	constant bpi_frontend_init : bpi_frontend_if_out_t := (
@@ -108,7 +115,7 @@ package bpi is
 		write_command => '0',
 		read_response => '0',
 
-		backend_execute => '0');
+		execute_req => '0');
 
 	type bpi_frontend_to_backend_t is record
 		execute_req : std_ulogic;
@@ -282,7 +289,8 @@ package body bpi is
 			--Enable path to command space
 			interface_out.write_command <= '1';
 
-			if interface_in.bpi_in_valid = '1' and interface_out.bpi_in_ready = '1' then
+			--Note both signals are on the "in" interface!
+			if interface_in.bpi_in_valid = '1' and interface_in.bpi_in_ready = '1' then
 				state.data_count := state.data_count - 1;
 			end if;
 
@@ -296,7 +304,8 @@ package body bpi is
 		begin
 			interface_out.read_response <= '1';
 
-			if interface_in.bpi_out_ready = '1' and interface_out.bpi_out_valid = '1' then
+			--Note both signals are on the "in" interface!
+			if interface_in.bpi_out_ready = '1' and interface_in.bpi_out_valid = '1' then
 				state.data_count := state.data_count - 1;
 			end if;
 
@@ -390,7 +399,12 @@ package body bpi is
 
 				when bpi_command_execute => 
 					--Trigger backend execution
-					--Done
+					interface_out.execute_req <= '1';
+
+					--Wait for execute acknowledge
+					if interface_in.execute_ack = '1' then
+						end_command;
+					end if;
 
 				when bpi_command_length => 
 					--Respond with length of written command space (4 bytes)

@@ -82,6 +82,11 @@ architecture rtl of bpi_axi_mgr is
 	--AXI signals
 	signal axi4_if_in : axi4_interface_in_t;
 	signal axi4_if_out : axi4_interface_out_t;	
+
+	--Signal copies of some variables below
+	--Useful for debuggers that cannot show variables in trace
+	signal bpi_state_sig : bpi_state_t;
+	signal bpxi_state_sig : bpxi_state_t;
 begin
 	--AXI
 	axi4_if_in.awready <= m_axi_awready;
@@ -108,15 +113,22 @@ begin
 	bpi_frontend_if_in.bpi_in_valid <= bpi_in_valid;
 	bpi_frontend_if_in.bpi_out_ready <= bpi_out_ready;
 
+	--Bad solution!
+	--Needed to sense whether FIFOs are getting data
+	bpi_frontend_if_in.bpi_out_valid <= bpi_out_valid;
+	bpi_frontend_if_in.bpi_in_ready <= bpi_in_ready;
+
 	--Muxing between frontend and command space
 	front_to_selected_if.command <= bpi_in;
 	front_to_selected_if.command_valid <= bpi_frontend_if_out.write_command and bpi_in_valid;
+	front_to_selected_if.execute_req <= bpi_frontend_if_out.execute_req;
 	bpi_in_ready <= selected_to_front_if.command_ready when bpi_frontend_if_out.write_command = '1' else bpi_frontend_if_out.bpi_in_ready;
 
 	--Muxing between frontend and response space
 	bpi_out <= selected_to_front_if.response when bpi_frontend_if_out.read_response = '1' else bpi_frontend_if_out.bpi_out;
 	bpi_out_valid <= selected_to_front_if.response_valid when bpi_frontend_if_out.read_response = '1' else bpi_frontend_if_out.bpi_out_valid;
 	front_to_selected_if.response_ready <= bpi_out_ready and bpi_frontend_if_out.read_response;
+	bpi_frontend_if_in.execute_ack <= selected_to_front_if.execute_ack;
 
 	--Mux/Demux to selected backend
 	process (backend_index, backends_to_selected, front_to_selected_if)
@@ -137,6 +149,7 @@ begin
 
 	--Generate backend memories
 	backend_fifo: for i in 0 to NUM_BACKENDS - 1 generate
+		--Command space
 		write_fifo: entity work.sync_fifo
 		generic map (
 			WIDTH => 8,
@@ -155,6 +168,7 @@ begin
 			read_data_valid => backend_in(i).command_valid,
 			read_data_ready => backend_out(i).command_ready);
 
+		--Response space
 		read_fifo: entity work.sync_fifo
 		generic map (
 			WIDTH => 8,
@@ -172,6 +186,10 @@ begin
 			read_data => backends_to_selected(i).response,
 			read_data_valid => backends_to_selected(i).response_valid,
 			read_data_ready => selected_to_backends(i).response_ready);
+
+		--Execute sync group
+		backend_in(i).execute_req  <= selected_to_backends(i).execute_req;
+		backends_to_selected(i).execute_ack <= backend_out(i).execute_ack;
 	end generate;
 
 	process (clk)
@@ -187,9 +205,7 @@ begin
 			else
 				--Drive frontend
                 bpi_frontend(bpi_state, bpi_frontend_if_in, bpi_frontend_if_out);
-
-                --Drive each backend, but really just drive one
-
+                bpi_state_sig <= bpi_state;
 			end if;
 		end if;
 
@@ -201,6 +217,7 @@ begin
 			else
 				--Drive backend
 				bpi_axi_backend(bpxi_state, backend_in(0), backend_out(0), axi4_if_in, axi4_if_out);
+				bpxi_state_sig <= bpxi_state;
 			end if;
 		end if;
 	end process;
